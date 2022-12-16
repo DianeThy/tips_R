@@ -1,0 +1,46 @@
+LIVRES R :
+- https://es.r4ds.hadley.nz/transform.html
+- https://bookdown.org/rdpeng/exdata/
+- https://www.rstudio.com/resources/books/ (site avec principaux livres)
+- https://stat545.com/dplyr-intro.html
+- https://bookdown.org/yihui/rmarkdown/appearance-and-style-1.html
+- https://mdsr-book.github.io/mdsr2e/
+
+
+R MARKDOWN :
+- https://bookdown.org/yihui/rmarkdown/dashboards.html
+- https://bookdown.org/yihui/rmarkdown-cookbook/dynamic-yaml.html
+- https://rmd4sci.njtierney.com/
+
+RAPPORTS AUTOMATISES (bookdown) :
+- https://bookdown.org/yihui/rmarkdown/parameterized-reports.html
+- https://docs.rstudio.com/connect/1.7.4/user/param-rmarkdown.html
+
+CARTOGRAPHIES :
+- https://quanti.hypotheses.org/795
+- https://rcarto.github.io/carto_avec_r/chapitre1.html
+
+FLEXDASHBOARDS :
+- https://rmarkdown.rstudio.com/flexdashboard/using.html (source R studio)
+- https://bookdown.org/voevodin_nv/R_Not_the_Best_Practices/flexdahsboard.html#data (débuter en FDB)
+- http://lenkiefer.com/2017/01/22/a-guide-to-building-an-interactive-flexdashboard/
+- https://medium.com/analytics-vidhya/shiny-dashboards-with-flexdashboard-e66aaafac1f2 (shiny dashboards)
+
+SHINY :
+- https://mastering-shiny.org/
+
+DEPLOY FLEXDASHBOARD :
+- https://medium.com/analytics-vidhya/deploying-a-shiny-flexdashboard-with-docker-cca338a10d12
+- https://shinyapp.io
+
+CREATE R PACKAGE :
+- https://hilaryparker.com/2014/04/29/writing-an-r-package-from-scratch/
+- https://r-pkgs.org/description.html
+- https://rtask.thinkr.fr/fr/fusen-creer-un-package-a-partir-dun-simple-fichier-rmarkdown/
+- https://emilyriederer.netlify.app/post/rmarkdown-driven-development/      #du projet au package
+
+PLOT ZOOM :
+- https://rafabelokurows.medium.com/google-trends-data-analysis-in-r-5b353022802c
+
+MARKDOWN : 
+- https://commonmark.org/help/
