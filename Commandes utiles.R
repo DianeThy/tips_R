@@ -4,9 +4,10 @@
 
 #--------------------------------Gestion des fichiers
 
-# Déposer Rmd sur GDrive pourtravailler en collaboration
+# Déposer Rmd sur GDrive pour travailler en collaboration   
+    # LE METTRE DANS UN DOSSIER TRACKDOWN ET LE NOM EN LIGNE DOIT GARDER L'EXTENSION .RMD
 trackdown::upload_file(file = "scripts/Rapport_final.Rmd", gfile = "Rapport_final.Rmd")
-trackdown::download_file(file = "scripts/Rapport_final.Rmd", gfile = "Rapport_final")
+trackdown::download_file(file = "scripts/Rapport_final.Rmd", gfile = "Rapport_final.Rmd")
 
 
 
@@ -46,6 +47,12 @@ data <- purrr::map(
 data <- data[data != "NA"] # replace NA by NULL
 data <- rrapply(data, condition = Negate(is.null), how = "prune") #remove NULL
 data <- data %>% bind_rows()
+
+# Aplatissement liste dans cellule df
+data <- data %>%
+    pull(column) %>% pluck() %>% bind_rows() %>% 
+    group_by(author_id) %>% mutate(n = n()) %>% select(author_id, n) %>% distinct()
+
 
 
 
@@ -100,12 +107,28 @@ data <- data %>% mutate(new_col = coalesce(col1,col2,col3))
 library(mondate)
 data <- data %>% mutate(date_fin = as.mondate(date_debut) + duree)
 
-# Extraction de chiffres dans une chaîne de caractères
-library(strex)
-data <- data %>% mutate(min = str_nth_number(replies, n = 1)) # extrait le 1er chiffre du string
+# Pivot longer en 2 étapes
+# Format long
+m3 <- Eau_groupe5 %>% select(c(BATIMENTS:TYPE_DE_BATIMENTS, starts_with("m3"))) %>% 
+    mutate_all(as.character) %>% 
+    pivot_longer(cols = -c(BATIMENTS:TYPE_DE_BATIMENTS), names_to = "Annee", values_to = "m3", names_prefix = "m3_")
+montant <- Eau_groupe5 %>% select(c(BATIMENTS:TYPE_DE_BATIMENTS, starts_with("montant"))) %>% 
+    mutate_all(as.character) %>% 
+    pivot_longer(cols = -c(BATIMENTS:TYPE_DE_BATIMENTS), names_to = "Annee", values_to = "montant", names_prefix = "montant_")
+final <- cbind(m3, montant %>% select(montant))
 
-# Extraction d'une date
-data <- data %>% mutate(annee = str_extract(`En quelle année ?`, "(1|2)\\d{3}")) #"\\d{5}" pour zipCode
+# Lignes paires / impaires
+data %>% filter(row_number() %% 2 == 0) # pair
+data %>% filter(row_number() %% 2 == 1) # impair
+                        
+
+
+
+    ### APLATISSEMENT DE VARIABLES
+
+
+# Sous forme de liste
+data <- data %>% pull(col) %>% pluck() %>% bind_rows()
 
 
 
@@ -126,8 +149,11 @@ data$new_col <- sample(random, size = nrow(data), replace = TRUE, prob = c(9/10,
 # Valeurs des 2 colonnes en une
 data$new_col <- paste(data$col1, data$col2, sep='')
 
-# Extraire certains caractères d'une chaîne de caractères
+# Extraire n premiers caractères d'une chaîne de caractères
 data$sub_string <- substr(data$chaine_charac, 1, 5)
+
+# Extraire n derniers caractères d'une chaîne de caractères
+data$sub_string <- substr(data$chaine_charac, nchar(data$chaine_charac)-5+1, nchar(data$chaine_charac))
 
 
 
@@ -166,7 +192,77 @@ anti_join(df1, df2)
 semi_join(df1, df2)
 
 
+
+#--------------------------------Chaînes de caractères
+
+
+
+# Extraction de l'acronyme depuis booktitle
+hal_manip_token <- hal %>% rowwise() %>% 
+    mutate(booktitle = removeWords(booktitle, c("IEEE ", "ACM ", "SIAM ")),
+           first_word = word(booktitle, 1), #premier mot du string
+           capital_word = rem_dup_word(sapply(str_extract_all(booktitle, "\\b[A-Z]+\\b"), paste, collapse= ' ')), #mots en lettres capitales uniques
+           #capital_word = str_remove_all(capital_word, "IEEE|ACM"), #retirer les IEEE et ACM
+           capital_word = gsub("\\W*\\b\\w\\b\\W*", " ", capital_word)) %>% #retirer lettres toutes seules
+    mutate_all(na_if, "") %>% 
+    mutate(hal_acronym = case_when(is.na(capital_word) ~ first_word,
+                                    is.na(first_word) ~ capital_word,
+                                    first_word == "In" ~ capital_word,
+                                    first_word == capital_word ~ first_word,
+                                    str_detect(first_word, "[0-9]") == TRUE ~ capital_word, #qd first_word contient un chiffre
+                                    nchar(capital_word) == 1 ~ first_word, #qd 1 seul caractère dans capital_word
+                                    grepl('[^[:alnum:]]', first_word) ~ capital_word, #qd first_word contient des caractères sépciaux (hors lettres et digits)
+                                    TRUE ~ capital_word)) %>%  
+    select(title, booktitle, year, hal_id, hal_acronym) %>% 
+    rename(hal_title = title)
+
+
+# Extraction de chiffres dans une chaîne de caractères
+library(strex)
+data <- data %>% mutate(min = str_nth_number(replies, n = 1)) # extrait le 1er chiffre du string
+
+# Extraction d'une date
+data <- data %>% mutate(annee = str_extract(`En quelle année ?`, "(1|2)\\d{3}")) #"\\d{5}" pour zipCode
+
+# Filtre sur les lignes contenant une date au format "%Y-%m-%d %H:%M:%S"
+data <- data %>% filter(grepl("\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}", vote) == TRUE)
+
+# Fonction pour retirer les mots doublons
+rem_dup_word <- function(x){
+#x <- tolower(x)
+paste(unique(trimws(unlist(strsplit(x,split=" ",fixed=F,perl=T)))),collapse = 
+" ")
+}
+
+# Nombres arrondis au million
+format(round(100000000 / 1e6, 1), trim = TRUE)
+
+# Centaines et milliers séparés des virgules
+format(as.integer(1000000, 0), nsmall = 1, big.mark = ".")
+
+
+
+
+#--------------------------------REGEX
+
+
+
+# Filtre string contenant un chiffre
+grep("\\d+", data$col, value = TRUE) 
+
+# Garder toutes les lettres avant le premier chiffre
+str_extract("NeurIPS 2020 - 34th Conference on Neural Information Processing Systems", "^\\D+")
+
+# Extraire caractères avant ":"
+str_extract(text, "^[a-zA-Z0-9_]*")
+
+# Extraire caractères après ": "
+str_extract(text, "(?<=: )[^\n]*")
+
+
+
 #--------------------------------Statistiques
+
 
 
 # Compte nombre de NA par colonne
@@ -246,7 +342,8 @@ graph <- data %>% ungroup() %>% mutate(colonne = fct_reorder(colonne, n)) %>%
             fontface = "italic", size = 2.6) +
   geom_vline(xintercept = -.5, linetype = 2) +
 # Passe en plotly
-ggplotly(graph, tooltip = c("text"))
+ggplotly(graph, tooltip = c("text")) %>% 
+    layout(xaxis = list(autorange = TRUE), yaxis = list(autorange = TRUE)) #auto adjust scale when click on element
 
 
 
@@ -263,3 +360,27 @@ ggplotly(graph, tooltip = c("text"))
 rio::export(data, "./Data/raw/base_de_donnees.xlsx")
 write.csv(data,"./Data/raw/base_de_donnees.csv", row.names = FALSE, fileEncoding = "UTF-8")
 
+# Pas de grand espace fin RMD
+#<div class="tocify-extend-page" data-unique="tocify-extend-page" style="height: 0;"></div>
+
+
+
+
+#-------------------------------Python en Rmd
+
+
+#```{r}
+library(reticulate)
+py_install("pandas")
+    # Utiliser un environnement virtuel
+Sys.setenv(RETICULATE_PYTHON = "C://Users/tmounier/OneDrive - everis/Documentos/.virtualenvs/sek_proj/Scripts/python.exe") 
+virtualenv_create("test_proj")
+py_install("pandas", envname = "test_proj", method = "auto")
+use_virtualenv("test_proj")
+
+#```{python}
+import pandas
+import plotly.express as px
+matrice = [[43, 57], [12, 88]]
+fig = px.imshow(matrice)
+fig.show()

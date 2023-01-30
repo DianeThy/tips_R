@@ -1,0 +1,28 @@
+---
+title: "Test_tutoR"
+author: "toto dada"
+date: '2023-01-30'
+output: learnr::tutorial
+runtime: shiny_prerendered
+---
+
+```{r setup, include=FALSE}
+library(learnr)
+```
+
+This code computes the answer to one plus one,
+change it so it computes two plus two:
+
+```{r addition, exercise=TRUE}
+1 + 1
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
