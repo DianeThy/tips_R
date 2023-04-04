@@ -84,8 +84,17 @@ data <- data %>% filter(grepl("mots particuliers", column) == TRUE)
 # Remplacer NA par 0
 data <- data %>% mutate(col = replace_na(col, 0))
 
+# Remplacer NA par 0 de toutes les colonnes
+data <- data %>% mutate_all(replace_na, replace = 0)
+
 # Remplacer les cellules vides par des NA
 data <- data %>% mutate_all(na_if, "")
+
+# Remplacer une valeur par des NA sur certaines colonnes
+data <- data %>% mutate(across(starts_with("Choix_"), ~ na_if(.x, "Pas de préférence")))
+
+# Remplacer des chiffres négatifs par des NA
+data <- data %>% mutate(col = replace(col, which(col<0), NA))
 
 # Filtrer avec plusieurs conditions
 data <- data %>% filter(type == "MET" | type == "CU" | type == "CC" | type == "CA") 
@@ -116,6 +125,10 @@ montant <- Eau_groupe5 %>% select(c(BATIMENTS:TYPE_DE_BATIMENTS, starts_with("mo
     mutate_all(as.character) %>% 
     pivot_longer(cols = -c(BATIMENTS:TYPE_DE_BATIMENTS), names_to = "Annee", values_to = "montant", names_prefix = "montant_")
 final <- cbind(m3, montant %>% select(montant))
+
+# Pivot wider
+data <- data |> 
+    pivot_wider(names_from = choix, values_from = nb_interesses, names_prefix = "choix_")
 
 # Lignes paires / impaires
 data %>% filter(row_number() %% 2 == 0) # pair
@@ -154,6 +167,11 @@ data$sub_string <- substr(data$chaine_charac, 1, 5)
 
 # Extraire n derniers caractères d'une chaîne de caractères
 data$sub_string <- substr(data$chaine_charac, nchar(data$chaine_charac)-5+1, nchar(data$chaine_charac))
+
+# ID de groupe pas au sein (within) mais entre (between) groups
+data <- data |> 
+    group_by(defi_profil) |> 
+    mutate(groupNbr = cur_group_id())
 
 
 
@@ -211,7 +229,7 @@ hal_manip_token <- hal %>% rowwise() %>%
                                     first_word == capital_word ~ first_word,
                                     str_detect(first_word, "[0-9]") == TRUE ~ capital_word, #qd first_word contient un chiffre
                                     nchar(capital_word) == 1 ~ first_word, #qd 1 seul caractère dans capital_word
-                                    grepl('[^[:alnum:]]', first_word) ~ capital_word, #qd first_word contient des caractères sépciaux (hors lettres et digits)
+                                    grepl('[^[:alnum:]]', first_word) ~ capital_word, #qd first_word contient des caractères spéciaux (hors lettres et digits)
                                     TRUE ~ capital_word)) %>%  
     select(title, booktitle, year, hal_id, hal_acronym) %>% 
     rename(hal_title = title)
@@ -223,6 +241,7 @@ data <- data %>% mutate(min = str_nth_number(replies, n = 1)) # extrait le 1er c
 
 # Extraction d'une date
 data <- data %>% mutate(annee = str_extract(`En quelle année ?`, "(1|2)\\d{3}")) #"\\d{5}" pour zipCode
+data <- data %>% mutate(Year_birth = format(as.Date(dateOfBirth, format="%Y-%m-%d %H:%M:%S"),"%Y"))
 
 # Filtre sur les lignes contenant une date au format "%Y-%m-%d %H:%M:%S"
 data <- data %>% filter(grepl("\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}", vote) == TRUE)
@@ -239,6 +258,10 @@ format(round(100000000 / 1e6, 1), trim = TRUE)
 
 # Centaines et milliers séparés des virgules
 format(as.integer(1000000, 0), nsmall = 1, big.mark = ".")
+
+# Enlever les espaces en début (ou fin) de string
+data <- data %>% mutate(col = trimws(col, which = "left")) 
+
 
 
 
@@ -308,11 +331,11 @@ subplot(plotly_positif, plotly_negatif, nrows=1)
 graph <- data %>% ungroup() %>% mutate(colonne = fct_reorder(colonne, n)) %>%
   ggplot(aes(x = colonne, y = n, fill = groupe, text = c(n, "individus"))) +
     # Type de graph
-  geom_col(position = "stack", width = 0.7, color = "white") +
-  coord_flip() +
-  geom_line(size=1.7, alpha=0.9, linetype=1, color = "#0066CC") +
+  geom_line(size = 1.7, alpha = 0.9, linetype = 1, color = "#0066CC") +
   geom_point(colour="#0066CC", fill="#0066CC", size = 2, pch = 21, stroke = 1.5) +
   geom_bar(stat="identity", position = "dodge", width=.6, col = "white", size = 2, fill = "#21468d") +
+  geom_bar(aes(x = forcats::fct_infreq(adequation))) + #fct_infreq pour ordonner selon count
+  geom_col(position = "stack", width = 0.7, color = "white") +  coord_flip() + #cas particulier de geom_bar où on prend n comme Y et non count
   geom_text_wordcloud(family = "Montserrat") +
     # Couleurs
   scale_fill_manual(values = c("#c898ae", "#da4729", "#f38337", "#74a466", "#fecf5d", "#5E79AC")) + #couleurs Bauhaus
@@ -323,8 +346,11 @@ graph <- data %>% ungroup() %>% mutate(colonne = fct_reorder(colonne, n)) %>%
     # Axes
   xlim(1, 100) +
   scale_y_continuous(labels = scales::comma) + #grands chiffres lisibles
-  scale_y_continuous(breaks= scales::pretty_breaks()) + 
+  scale_y_continuous(breaks = scales::pretty_breaks()) + 
   scale_y_continuous(labels = scales::percent, limits = c(0,1)) + # pourcentages
+  scale_y_discrete(limits = 1:12) + #valeurs discrètes
+  scale_y_discrete(labels = function(x) stringr::str_wrap(x, width = 70)) + #axis-text trop longs sur plusieurs lignes
+  scale_color_continuous(high = "#132B43", low = "#56B1F7") #reverse color
     # Mise en page générale
   theme_classic() +
   theme(legend.position = "bottom",
@@ -337,10 +363,22 @@ graph <- data %>% ungroup() %>% mutate(colonne = fct_reorder(colonne, n)) %>%
     # Légende
   guides(fill = guide_legend(nrow = 6, byrow = TRUE,  # nombre d'éléments par ligne
                              title = "titre légende")) + # titre légende
+  guides(lwd = "none") + #ne pas afficher une légende en particulier
     # Éléments additionnels
   geom_text(aes(y = 1, label = title_projet, hjust="bottom"), #aligner geom_text à gauche avec coord_flip
             fontface = "italic", size = 2.6) +
+  stat_count(geom = "text", colour = "white", size = 4,
+             aes(label = ..count.., y = ..count..+.7), #y pour positionnement juste au dessus des barres
+             position=position_stack(vjust=0.5)) + #geom_text des geom_bar sans y
   geom_vline(xintercept = -.5, linetype = 2) +
+    # Facettes
+  facet_grid(Projet ~ ., 
+             scales = "free", #scales="free" pour label différents d'une facette à une autre
+             space = "free") + #space="free" pour hauteur différentes selon le nombre d'éléments par facette
+  facet_zoom(x = annee > 2014, split = TRUE) +
+  ggforce::facet_col(facets = vars(Projet), 
+                     scales = "free_y", 
+                     space = "free") + # pour avoir scales et face de facet_grid avec labels to the top de facet_wrap
 # Passe en plotly
 ggplotly(graph, tooltip = c("text")) %>% 
     layout(xaxis = list(autorange = TRUE), yaxis = list(autorange = TRUE)) #auto adjust scale when click on element
@@ -364,6 +402,14 @@ write.csv(data,"./Data/raw/base_de_donnees.csv", row.names = FALSE, fileEncoding
 #<div class="tocify-extend-page" data-unique="tocify-extend-page" style="height: 0;"></div>
 
 
+
+
+#-------------------------------RMD
+
+
+# footer, css, header dans un autre dossier
+includes:
+    in_header: !expr here::here("inst/rmarkdown/resources/header.html")
 
 
 #-------------------------------Python en Rmd
