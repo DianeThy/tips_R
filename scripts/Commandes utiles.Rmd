@@ -1,0 +1,464 @@
+---
+title: "Commandes utiles"
+author: "Diane Thierry"
+date: "Màj le `r Sys.Date()`"
+output: 
+    html_document:
+        theme: paper
+        toc: yes
+        toc_float: yes
+        number_sections: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      eval = FALSE)
+```
+
+Ce document vise à rassembler les commandes utiles pour programmer en R.
+
+---
+
+# Départ d'analyse
+
+## Création df
+
+```{r}
+x <- data.frame(col1 = c("BASSIN DE POMPEY", "CC AURE ET LOURON", "CC DU BRIANCONNAIS", "CC DU PAYS DE SALERS"),
+                col2 = c(2, 1, 7,6))
+```
+
+## Import données
+
+
++ **JSON**
+
+```{r}
+decp_Lambersart <- fromJSON(txt = "../data/decp/decp_Lambersart.json", flatten = T)
+decp_Lambersart <- as.data.frame(decp_Lambersart$marches) |> 
+  rename(id_marche = id)|> 
+  mutate(titulaires = map(titulaires, ~ mutate(.x, id = as.character(id)))) |> 
+  unnest(cols = c(titulaires)) |> 
+  select(-modifications)
+```
+
++ **XML**
+
+```{r}
+data_19 <- xmlParse(content(GET("https://marchespublics596280.fr/app.php/api/v1/donnees-essentielles/contrat/xml-extraire-criteres/50286/a:1:%7Bi:0;i:0;%7D/1/2019/false/false/false/false/false/false/false/false/false", user_agent("Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2227.0 Safari/537.36")), "text"), 
+                      encoding = "UTF-8")
+xml_df_19 <- xmlToDataFrame(nodes = getNodeSet(data_19, "//marche")) %>% mutate(Year = 2019)
+```
+
++ **bibTex**
+
+```{r}
+hal1 <- read_bibtex("https://api.archives-ouvertes.fr/search/?q=+publicationDateY_i%3A[2018+TO+2020]+AND++(docType_s%3ACOMM)&fq=collCode_s%3AINRIA2&rows=100000&wt=bibtex")
+```
+
++ **Plusieurs CSV à la fois**
+
+```{r}
+rbindlist_fread <- function(path, pattern = "*.csv") {
+    files = list.files(path, pattern, full.names = TRUE)
+    rbindlist(lapply(files, function(x) fread(x)))
+}
+data <- rbindlist_fread("mon/super/path")
+```
+
++ **ZIP**
+
+```{r}
+download.file("https://www.insee.fr/fr/statistiques/fichier/5359146/dossier_complet.zip", "dossier_complet.zip")
+unzip("dossier_complet.zip")
+data <- read_delim("dossier_complet.csv", ";", trim_ws = TRUE)
+```
+
+
+
+### API
+
++ Open Alex
+
+```{r}
+parse_api_open_alex <- function(start, end){
+    
+    # Import des données : Works dataset, appels de l'API
+    works_data <- purrr::map(
+        .x = dois_bso[start:end,]$doi,
+        .y = data.frame(matrix(ncol = 1, nrow = 1)),
+        possibly(.f = ~fromJSON(txt = paste("https://api.openalex.org/works/mailto:diane@datactivist.coop/doi:", .x, sep = ""), flatten = T), otherwise = NA_character_),
+        .default = NA)
+    
+    # Aplatissement
+        # sélection des 2 variables qui nous intéressent
+    works_df <- purrr::map(
+        .x = works_data,
+        .y = data.frame(matrix(ncol = 1, nrow = 1)),
+        possibly(.f = ~unnest(data.frame(    # on récupère chaque élément/variable qui nous intéresse, on les met dans un df
+                       doi = .x$doi, 
+                       .x$authorships),
+                   cols = "institutions", names_repair = "universal") %>% select(doi, country_code), otherwise = NA_character_), 
+        .default = NA)
+        # suppression des NA et mise au format tabulaire
+    works_df <- works_df[works_df != "NA"] # replace NA (DOIs non matchés avec OpenAlex) by NULL
+    works_df <- rrapply(works_df, condition = Negate(is.null), how = "prune") #remove NULL
+    works_df <- works_df %>% bind_rows()
+    
+    # Export du df
+    rio::export(works_df, glue("data/3.external/OpenAlex/french_CA/API_{start}_{end}.csv"))
+
+}
+
+
+### On applique la fonction par 50.000 DOIs (~1h15 pour 10.000 appels)
+parse_api_open_alex(1,50000)
+```
+
+
+### Scraping
+
++ **Scraping simple (données dans 1 table sur 1 page)**
+
+```{r}
+library(rvest)
+content <- read_html("https://www.saint-marcellin.fr/services/vie-commerciale/commerces")
+body_table <- content %>% html_nodes('body')  %>%
+                    html_nodes('table') %>%
+                    html_table(dec = ",") 
+data <- body_table[[1]]
+```
+
++ **Scraping moyen (données dans 1 table sur plusieurs pages)**
+
+```{r}
+library(rvest)
+data <- purrr::map(
+        .x = (as.data.frame(rep(1:5, each = 1)) |> rename(page = `rep(1:5, each = 1)`))$page,
+        .y = data.frame(matrix(ncol = 1, nrow = 1)),
+        .f = ~read_html(paste0("http://portal.core.edu.au/conf-ranks/?search=&by=all&source=all&sort=atitle&page=", .x)) |> html_nodes('body')  |> html_nodes('table') |> html_table(dec = ","), 
+        .default = NA)
+data <- bind_rows(data)
+```
+
+
++ **Scraping complexe (données dans corps de texte sur plusieurs pages)**
+
+```{r}
+library(htm2txt)
+core_millesime <- purrr::map(
+        .x = (as.data.frame(rep(1:10, each = 1)) %>% rename(page = `rep(1:10, each = 1)`))$page,
+        .y = data.frame(matrix(ncol = 1, nrow = 1)),
+        possibly(.f = ~ as.data.frame(gettxt(paste0('http://portal.core.edu.au/conf-ranks/', .x))) %>% #import page par page
+    rename(text = 1) %>% 
+    mutate(text = strsplit(as.character(text), "\n")) %>% unnest(text) %>% #split les éléments séparés par des "\n"
+    filter(row_number() == 10 | #nom de conférence
+               grepl("Acronym:", text) == TRUE | 
+               grepl("Source:", text) == TRUE | 
+               grepl("Rank:", text) == TRUE, #champs que l'on garde
+           grepl("DBLP", text) == FALSE) %>% #retrait de la ligne contenant ce string
+    mutate(text = case_when(row_number() == 1 ~ paste("Title:", text), TRUE ~ text), #ajout du préfixe "titre:"
+           champ = str_extract(text, "^[a-zA-Z0-9_]*"), #dans une nouvelle colonne ce qui est avant ":"
+           value = str_extract(text, "(?<=: )[^\n]*")) %>% #dans une nouvelle colonne ce qui est après ": "
+    select(-text) %>% t() %>% row_to_names(row_number = 1) %>% data.frame() %>% #transpose puis 1ère ligne en nom de colonnes
+    pivot_longer(cols = -c(Title, Acronym), names_to = "number", values_to = "value", names_prefix = "Source|Rank") %>% # format long pour rank et source quand multiples
+    mutate(col = case_when(row_number() %% 2 == 0 ~ "rank",
+                           row_number() %% 2 == 1 ~ "source")) %>% #
+    pivot_wider(names_from = col, values_from = value) %>% select(-number) %>% mutate(core_id = .x), otherwise = NA_character_),
+        .default = NA)
+
+# Gestion des Na et mise au format tabulaire
+core_histo <- core_millesime[core_millesime != "NA"] # replace NA by NULL
+core_histo <- rrapply::rrapply(core_histo, condition = Negate(is.null), how = "prune") #remove NULL
+core_histo <- core_histo %>% bind_rows()
+```
+
+
+## Librairies en masse
+
+```{r}
+packages = c("tidyverse", "jsonlite", "glue", "parallel", "doParallel", "foreach")
+package.check <- lapply(
+  packages,
+  FUN = function(x) {
+    if (!require(x, character.only = TRUE)) {
+      install.packages(x, dependencies = TRUE)
+      library(x, character.only = TRUE)
+    }
+  }
+)
+```
+
+
+
+
+
+# Manipulations de variables 
+
+## Modification de variables
+
+### Dates
+
++ **Changer format date**
+
+```{r}
+data$Date <- format(as.Date(data$Date, format="%Y-%m-%d %H:%M:%S"),"%d %B %Y") #30 mai 2023
+# autres formats : https://www.r-bloggers.com/2013/08/date-formats-in-r/
+```
+
++ **Différence de dates**
+
+```{r}
+data <- data |> mutate(age = round(as.numeric(difftime(Sys.Date(), dateOfBirth, units = "weeks")) / 52.1429, 0), #année
+                       nb_weeks = round(as.numeric(difftime(fin, Sys.Date(), units = "weeks")), 0), #semaine
+                       nb_month = round(as.numeric(difftime(fin, Sys.Date(), units = "weeks") /4.34524), 0)) #mois
+```
+
++ **Somme de dates**
+
+```{r}
+library(mondate)
+data <- data |> mutate(date_fin = as.mondate(date_debut) + duree) #duree en mois
+```
+
+
+
+### Remplacement de valeurs
+
++ **Replace string**
+
+```{r}
+# Valeurs d'une colonne
+data$column <- str_replace_all(data$column, c("ancienne valeur|Anciennes valeurs" = "nouvelle valeur"))
+
+# Valeurs du df entier
+data <- data |> mutate_all(function(x) gsub("pattern1 | pattern2", "replacement", x))
+```
+
+
++ **Remove string**
+
+```{r}
+# Supprimer les caractères spéciaux ex : ? ' !
+data <- data |> mutate(col = str_replace_all(col, "[^[:alnum:]]", " "))
+```
+
+
++ **Replace NA**
+
+```{r}
+# NAs d'une colonne par 0
+data <- data |> mutate(col = replace_na(col, 0))
+
+# NAs du df entier par 0
+data <- data |> mutate_all(replace_na, replace = 0)
+
+# NAs par string
+data <- data |> replace(is.na(.), "unknown_by_WOS")
+
+# NAs par valeurs autre colonne
+data$column[is.na(data$column)] <- as.character(data$replacment[is.na(data$column)])  
+```
+
+
++ **Replace by NA**
+
+```{r}
+# Cellules vides par NAs
+data <- data |> mutate_all(na_if, "")
+
+# NULL par NAs
+data <- data |> replace(.=="NULL", NA) 
+data[data == "null"] <- NA
+
+# Chiffres négatifs par NAs
+data <- data |> mutate(col = replace(col, which(col<0), NA))
+
+# Valeur par NAs sur certaines colonnes
+data <- data |> mutate(across(starts_with("Choix_"), ~ na_if(.x, "Pas de préférence")))
+```
+
+
+
+### Aplatissement de listes
+
+```{r}
+data <- data |>
+    pull(column) |> pluck() |> bind_rows() |> 
+    group_by(author_id) |> mutate(n = n()) |> select(author_id, n) |> distinct()
+```
+
+
+
+### Format de variables
+
++ **Pivot longer**
+
+```{r}
+m3 <- Eau_groupe5 |> select(c(BATIMENTS:TYPE_DE_BATIMENTS, starts_with("m3"))) |> 
+    mutate_all(as.character) |> 
+    pivot_longer(cols = -c(BATIMENTS:TYPE_DE_BATIMENTS), names_to = "Annee", values_to = "m3", names_prefix = "m3_")
+montant <- Eau_groupe5 |> select(c(BATIMENTS:TYPE_DE_BATIMENTS, starts_with("montant"))) |> 
+    mutate_all(as.character) |> 
+    pivot_longer(cols = -c(BATIMENTS:TYPE_DE_BATIMENTS), names_to = "Annee", values_to = "montant", names_prefix = "montant_")
+final <- cbind(m3, montant |> select(montant))
+```
+
++ **Pivot wider**
+
+```{r}
+data <- data |> 
+    pivot_wider(names_from = choix, values_from = nb_interesses, names_prefix = "choix_")
+```
+
++ **Split comma separated values**
+
+```{r}
+# Split 
+unnested_bso <- unnested_bso %>% mutate(journal_issns = strsplit(as.character(journal_issns), ",")) %>% unnest(journal_issns)
+# Unsplit
+unnested_bso <- unnested_bso %>% mutate(journal_issns = paste0(unique(na.omit(journal_issns)), collapse = ","))
+```
+
+
+
+
+## Création de variables
+
++ **Index rep**
+
+```{r}
+c(rep(1:5570, each = 50), rep(5571, each = 7))
+```
+
++ **Merge 2 columns into 1**
+
+```{r}
+data <- data |> mutate(new_col = coalesce(col1,col2,col3))
+```
+
+## Chaînes de caractères
+
++ **Add digit identifiant**
+
+```{r}
+data$nom <- sprintf("%02d", data$num)
+data <- data |> mutate(nom = str_pad(nom, 14, pad = "0"))
+```
+
++ **Remove first digit if 0**
+
+```{r}
+data$nom <- gsub("^0", "", data$nom)
+```
+
+REGEX
+
+
+## Filtres
+
++ **Remove values containing ','**
+
+```{r}
+# Supprimer valeurs contenant une virgule
+data <- data |> filter(!grepl(',', column))
+```
+
++ **Keep values containing string**
+
+```{r}
+data <- data |> filter(grepl("mots particuliers", column) == TRUE)
+data <- data |> filter_all(all_vars(!grepl("mot", .)))
+```
+
++ **Lignes paires / impaires**
+
+```{r}
+data |> filter(row_number() %% 2 == 0) # pair
+data |> filter(row_number() %% 2 == 1) # impair
+```
+
+## Tests
+
++ Redondance
+
+```{r}
+identical(bso_data$doi, bso_data$id)
+```
+
+
+
+
+# Manipulations de dataframes
+REUNIR 2 DATAFRAMES
+Comparaison de dataframes
+
+---
+
+# Analyse
+
+## Statistiques
+
++ Nombre et % NA par colonne df
+
+```{r}
+nb_NA <- as.data.frame(apply(is.na(bso_data), 2, sum)) %>% 
+                       rename(`nombre de NA` = `apply(is.na(bso_data), 2, sum)`) %>%
+                       mutate(pourcentage = `nombre de NA`/nrow(bso_data)*100) %>% 
+                       mutate(pourcentage = round(pourcentage, 2)) %>% 
+                       arrange(desc(pourcentage))
+```
+
+## Visualisations
+
+---
+
+# Fin d'analyse
+export d'objet, dans fonction, htmlwidget
+
+----
+
+# R Markdown
+
++ **RMD collaboratif**
+
+```{r}
+# Déposer Rmd sur GDrive pour travailler en collaboration   
+    # LE METTRE DANS UN DOSSIER TRACKDOWN ET LE NOM EN LIGNE DOIT GARDER L'EXTENSION .RMD
+trackdown::upload_file(file = "scripts/Rapport_final.Rmd", gfile = "Rapport_final.Rmd")
+trackdown::download_file(file = "scripts/Rapport_final.Rmd", gfile = "Rapport_final.Rmd")
+```
+
+
+Flexdashboard
+Python en Rmd
+
+---
+
+# Autre
+
++ **Commandes bash dans R**
+
+```{r}
+    system(glue("cat {in_dir}/study-apc_{year}.jsonl | jq -c '{{doi, year, bso_classification, coi, datasource, detected_countries, domains, genre, grants, has_grant, id, is_paratext, journal_issn_l, journal_issns, journal_name, journal_title, keywords, lang, mesh_headings, pmid, publication_date, publication_year, published_date, publisher, sources, title, title_first_author, title_first_author_raw, url, has_apc, currency_apc_doaj, amount_apc_EUR, apc_source, amount_apc_doaj_EUR, amount_apc_doaj, amount_apc_openapc_EUR, count_apc_openapc_key, publisher_in_bealls_list, journal_or_publisher_in_bealls_list, publisher_normalized, publisher_group, publisher_dissemination, genre_raw, french_affiliations_types, author_useful_rank_fr, author_useful_rank_countries, observation_dates, has_coi, bso_local_affiliations, hal_id}}' | jq --slurp > {out_dir}/unnested_bso_{year}.json"))
+```
+
++ **Exécution en parallèle**
+
+```{r}
+library(parallel)
+library(doParallel)
+library(foreach)
+years <- 2013:2020
+
+numCores <- 2
+registerDoParallel(numCores)
+
+foreach (year=years) %dopar% {
+  subjson_bso(year)
+}
+
+stopImplicitCluster()
+```
+
++ **
