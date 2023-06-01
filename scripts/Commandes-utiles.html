@@ -1526,7 +1526,7 @@ div.tocify {
 
 <h1 class="title toc-ignore">Commandes utiles</h1>
 <h4 class="author">Diane Thierry</h4>
-<h4 class="date">Màj le 2023-05-31</h4>
+<h4 class="date">Màj le 2023-06-01</h4>
 
 </div>
 
@@ -1561,7 +1561,7 @@ xml_df_19 &lt;- xmlToDataFrame(nodes = getNodeSet(data_19, &quot;//marche&quot;)
 <ul>
 <li><strong>bibTex</strong></li>
 </ul>
-<pre class="r"><code>hal1 &lt;- read_bibtex(&quot;https://api.archives-ouvertes.fr/search/?q=+publicationDateY_i%3A[2018+TO+2020]+AND++(docType_s%3ACOMM)&amp;fq=collCode_s%3AINRIA2&amp;rows=100000&amp;wt=bibtex&quot;)</code></pre>
+<pre class="r"><code>hal1 &lt;- read_bibtex(&quot;https://api.archives-ouvertes.fr/search/?q = +publicationDateY_i%3A[2018+TO+2020]+AND++(docType_s%3ACOMM)&amp;fq = collCode_s%3AINRIA2&amp;rows = 100000&amp;wt = bibtex&quot;)</code></pre>
 <ul>
 <li><strong>Multiple CSV into folder</strong></li>
 </ul>
@@ -1601,7 +1601,7 @@ data &lt;- read_delim(&quot;dossier_complet.csv&quot;, &quot;;&quot;, trim_ws = 
                    cols = &quot;institutions&quot;, names_repair = &quot;universal&quot;) |&gt; select(doi, country_code), otherwise = NA_character_), 
         .default = NA)
         # suppression des NA et mise au format tabulaire
-    works_df &lt;- works_df[works_df != &quot;NA&quot;] # replace NA (DOIs non matchés avec OpenAlex) by NULL
+    works_df &lt;- works_df[works_df !=  &quot;NA&quot;] # replace NA (DOIs non matchés avec OpenAlex) by NULL
     works_df &lt;- rrapply(works_df, condition = Negate(is.null), how = &quot;prune&quot;) #remove NULL
     works_df &lt;- works_df |&gt; bind_rows()
     
@@ -1633,7 +1633,7 @@ pages)</strong></li>
 data &lt;- purrr::map(
         .x = (as.data.frame(rep(1:5, each = 1)) |&gt; rename(page = `rep(1:5, each = 1)`))$page,
         .y = data.frame(matrix(ncol = 1, nrow = 1)),
-        .f = ~read_html(paste0(&quot;http://portal.core.edu.au/conf-ranks/?search=&amp;by=all&amp;source=all&amp;sort=atitle&amp;page=&quot;, .x)) |&gt; html_nodes(&#39;body&#39;)  |&gt; html_nodes(&#39;table&#39;) |&gt; html_table(dec = &quot;,&quot;), 
+        .f = ~read_html(paste0(&quot;http://portal.core.edu.au/conf-ranks/?search = &amp;by = all&amp;source = all&amp;sort = atitle&amp;page = &quot;, .x)) |&gt; html_nodes(&#39;body&#39;)  |&gt; html_nodes(&#39;table&#39;) |&gt; html_table(dec = &quot;,&quot;), 
         .default = NA)
 data &lt;- bind_rows(data)</code></pre>
 <ul>
@@ -1647,23 +1647,23 @@ core_millesime &lt;- purrr::map(
         possibly(.f = ~ as.data.frame(gettxt(paste0(&#39;http://portal.core.edu.au/conf-ranks/&#39;, .x))) |&gt; #import page par page
     rename(text = 1) |&gt; 
     mutate(text = strsplit(as.character(text), &quot;\n&quot;)) |&gt; unnest(text) |&gt; #split les éléments séparés par des &quot;\n&quot;
-    filter(row_number() == 10 | #nom de conférence
-               grepl(&quot;Acronym:&quot;, text) == TRUE | 
-               grepl(&quot;Source:&quot;, text) == TRUE | 
-               grepl(&quot;Rank:&quot;, text) == TRUE, #champs que l&#39;on garde
-           grepl(&quot;DBLP&quot;, text) == FALSE) |&gt; #retrait de la ligne contenant ce string
-    mutate(text = case_when(row_number() == 1 ~ paste(&quot;Title:&quot;, text), TRUE ~ text), #ajout du préfixe &quot;titre:&quot;
+    filter(row_number() ==  10 | #nom de conférence
+               grepl(&quot;Acronym:&quot;, text) ==  TRUE | 
+               grepl(&quot;Source:&quot;, text) ==  TRUE | 
+               grepl(&quot;Rank:&quot;, text) ==  TRUE, #champs que l&#39;on garde
+           grepl(&quot;DBLP&quot;, text) ==  FALSE) |&gt; #retrait de la ligne contenant ce string
+    mutate(text = case_when(row_number() ==  1 ~ paste(&quot;Title:&quot;, text), TRUE ~ text), #ajout du préfixe &quot;titre:&quot;
            champ = str_extract(text, &quot;^[a-zA-Z0-9_]*&quot;), #dans une nouvelle colonne ce qui est avant &quot;:&quot;
-           value = str_extract(text, &quot;(?&lt;=: )[^\n]*&quot;)) |&gt; #dans une nouvelle colonne ce qui est après &quot;: &quot;
+           value = str_extract(text, &quot;(?&lt; = : )[^\n]*&quot;)) |&gt; #dans une nouvelle colonne ce qui est après &quot;: &quot;
     select(-text) |&gt; t() |&gt; row_to_names(row_number = 1) |&gt; data.frame() |&gt; #transpose puis 1ère ligne en nom de colonnes
     pivot_longer(cols = -c(Title, Acronym), names_to = &quot;number&quot;, values_to = &quot;value&quot;, names_prefix = &quot;Source|Rank&quot;) |&gt; # format long pour rank et source quand multiples
-    mutate(col = case_when(row_number() %% 2 == 0 ~ &quot;rank&quot;,
-                           row_number() %% 2 == 1 ~ &quot;source&quot;)) |&gt; #
+    mutate(col = case_when(row_number() %% 2 ==  0 ~ &quot;rank&quot;,
+                           row_number() %% 2 ==  1 ~ &quot;source&quot;)) |&gt; #
     pivot_wider(names_from = col, values_from = value) |&gt; select(-number) |&gt; mutate(core_id = .x), otherwise = NA_character_),
         .default = NA)
 
 # Gestion des Na et mise au format tabulaire
-core_histo &lt;- core_millesime[core_millesime != &quot;NA&quot;] # replace NA by NULL
+core_histo &lt;- core_millesime[core_millesime !=  &quot;NA&quot;] # replace NA by NULL
 core_histo &lt;- rrapply::rrapply(core_histo, condition = Negate(is.null), how = &quot;prune&quot;) #remove NULL
 core_histo &lt;- core_histo |&gt; bind_rows()</code></pre>
 </div>
@@ -1701,7 +1701,7 @@ variables</h2>
 <ul>
 <li><strong>Change date format</strong></li>
 </ul>
-<pre class="r"><code>data$Date &lt;- format(as.Date(data$Date, format=&quot;%Y-%m-%d %H:%M:%S&quot;),&quot;%d %B %Y&quot;) #30 mai 2023
+<pre class="r"><code>data$Date &lt;- format(as.Date(data$Date, format = &quot;%Y-%m-%d %H:%M:%S&quot;),&quot;%d %B %Y&quot;) #30 mai 2023
 # autres formats : https://www.r-bloggers.com/2013/08/date-formats-in-r/</code></pre>
 <ul>
 <li><strong>Dates subtraction</strong></li>
@@ -1752,8 +1752,8 @@ data &lt;- data |&gt; mutate(col_NA = coalesce(col_NA, col_replace))</code></pre
 data &lt;- data |&gt; mutate_all(na_if, &quot;&quot;)
 
 # NULL par NAs
-data &lt;- data |&gt; replace(.==&quot;NULL&quot;, NA) 
-data[data == &quot;null&quot;] &lt;- NA
+data &lt;- data |&gt; replace(. =  = &quot;NULL&quot;, NA) 
+data[data ==  &quot;null&quot;] &lt;- NA
 
 # Chiffres négatifs par NAs
 data &lt;- data |&gt; mutate(col = replace(col, which(col&lt;0), NA))
@@ -1840,37 +1840,37 @@ caractères</h2>
 <ul>
 <li><strong>Upper string and remove special characters</strong></li>
 </ul>
-<pre class="r"><code>data &lt;- data |&gt; mutate(col = stringi::stri_trans_general(str = gsub(&quot;-&quot;, &quot; &quot;, toupper(col)), id = &quot;Latin-ASCII&quot;))</code></pre>
+<pre class="r"><code>data &lt;- data |&gt; mutate(col = stringi::stri_trans_general(str = gsub(&quot;-&quot;, &quot; &quot;, toupper(string)), id = &quot;Latin-ASCII&quot;))</code></pre>
 <ul>
 <li><strong>Remove specific words/characters</strong></li>
 </ul>
-<pre class="r"><code>data &lt;- data |&gt; mutate(col = removeWords(col, c(&quot;IEEE &quot;, &quot;ACM &quot;, &quot;SIAM &quot;)))</code></pre>
+<pre class="r"><code>data &lt;- data |&gt; mutate(col = removeWords(string, c(&quot;IEEE &quot;, &quot;ACM &quot;, &quot;SIAM &quot;)))</code></pre>
 <ul>
 <li><strong>Remove duplicated words</strong></li>
 </ul>
 <pre class="r"><code>rem_dup_word &lt;- function(x){
-  x &lt;- tolower(x)
-  paste(unique(trimws(unlist(strsplit(x, split=&quot; &quot;, fixed=F, perl=T)))), collapse = &quot; &quot;)
+  #x &lt;- tolower(x)
+  paste(unique(trimws(unlist(strsplit(x, split = &quot; &quot;, fixed = F, perl = T)))), collapse = &quot; &quot;)
 }
 rem_dup_word(x)</code></pre>
 <ul>
 <li><strong>Remove isolated letters/characters</strong></li>
 </ul>
-<pre class="r"><code>data &lt;- data |&gt; mutate(gsub(&quot;\\W*\\b\\w\\b\\W*&quot;, &quot; &quot;, col))</code></pre>
+<pre class="r"><code>data &lt;- data |&gt; mutate(col = gsub(&quot;\\W*\\b\\w\\b\\W*&quot;, &quot; &quot;, string))</code></pre>
 <ul>
 <li><strong>Remove blank spaces at the begining (or the
 end)</strong></li>
 </ul>
-<pre class="r"><code>data &lt;- data |&gt; mutate(col = trimws(col, which = &quot;left&quot;))</code></pre>
+<pre class="r"><code>data &lt;- data |&gt; mutate(col = trimws(string, which = &quot;left&quot;))</code></pre>
 <ul>
 <li><strong>Keep first word</strong></li>
 </ul>
-<pre class="r"><code>data &lt;- data |&gt; mutate(first_word = word(booktitle, 1))</code></pre>
+<pre class="r"><code>data &lt;- data |&gt; mutate(first_word = word(string, 1))</code></pre>
 <ul>
 <li><strong>Extract digits</strong></li>
 </ul>
 <pre class="r"><code>library(strex)
-data &lt;- data |&gt; mutate(min = str_nth_number(replies, n = 1)) # extrait le 1er chiffre du string</code></pre>
+data &lt;- data |&gt; mutate(min = str_nth_number(string, n = 1)) # extrait le 1er chiffre du string</code></pre>
 <ul>
 <li><strong>Extract year</strong></li>
 </ul>
@@ -1878,32 +1878,32 @@ data &lt;- data |&gt; mutate(min = str_nth_number(replies, n = 1)) # extrait le 
 <ul>
 <li><strong>Extract n first characters</strong></li>
 </ul>
-<pre class="r"><code>data &lt;- data |&gt; mutate(sub_string = substr(data$chaine_charac, 1, n))</code></pre>
+<pre class="r"><code>data &lt;- data |&gt; mutate(sub_string = substr(data$string, 1, n))</code></pre>
 <ul>
 <li><strong>Extract n last characters</strong></li>
 </ul>
-<pre class="r"><code>data &lt;- data |&gt; mutate(sub_string = substr(data$chaine_charac, nchar(data$chaine_charac)-n+1, nchar(data$chaine_charac)))</code></pre>
+<pre class="r"><code>data &lt;- data |&gt; mutate(sub_string = substr(data$string, nchar(data$string)-n+1, nchar(data$string)))</code></pre>
 <ul>
 <li><strong>Add digit identifiant</strong></li>
 </ul>
 <pre class="r"><code>data &lt;- data |&gt; mutate(num = sprintf(&quot;%02d&quot;, num)) #passer de 1 à 2 digits
-data &lt;- data |&gt; mutate(nom = str_pad(nom, 14, pad = &quot;0&quot;)) #obliger à avoir 14 caractères (donc ajoute 0 en début si besoin)</code></pre>
+data &lt;- data |&gt; mutate(num = str_pad(num, 14, pad = &quot;0&quot;)) #obliger à avoir 14 caractères (donc ajoute 0 en début si besoin)</code></pre>
 <ul>
 <li><strong>Remove first digit if 0</strong></li>
 </ul>
-<pre class="r"><code>data &lt;- data |&gt; mutate(nom = gsub(&quot;^0&quot;, &quot;&quot;, nom))</code></pre>
+<pre class="r"><code>data &lt;- data |&gt; mutate(num = gsub(&quot;^0&quot;, &quot;&quot;, num))</code></pre>
 <ul>
 <li><strong>Only 1 character in a string</strong></li>
 </ul>
-<pre class="r"><code>nchar(capital_word) == 1</code></pre>
+<pre class="r"><code>nchar(string) ==  1</code></pre>
 <div id="regular-expressions-regex" class="section level3" number="2.3.1">
 <h3><span class="header-section-number">2.3.1</span> Regular expressions
 (regex)</h3>
 <ul>
 <li><strong>Detect digits</strong></li>
 </ul>
-<pre class="r"><code>str_detect(string, &quot;[0-9]&quot;) == TRUE
-grep(&quot;\\d+&quot;, data$col, value = TRUE) </code></pre>
+<pre class="r"><code>str_detect(string, &quot;[0-9]&quot;) ==  TRUE
+grep(&quot;\\d+&quot;, string, value = TRUE) </code></pre>
 <ul>
 <li><strong>Detect special characters (i.e. no letter nor
 digit)</strong></li>
@@ -1912,31 +1912,31 @@ digit)</strong></li>
 <ul>
 <li><strong>Detect dates with format “%Y-%m-%d %H:%M:%S”</strong></li>
 </ul>
-<pre class="r"><code>grepl(&quot;\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}&quot;, vote)</code></pre>
+<pre class="r"><code>grepl(&quot;\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}&quot;, string)</code></pre>
 <ul>
 <li><strong>Extract characters before first digit</strong></li>
 </ul>
-<pre class="r"><code>str_extract(&quot;NeurIPS 2020 - 34th Conference on Neural Information Processing Systems&quot;, &quot;^\\D+&quot;)</code></pre>
+<pre class="r"><code>str_extract(string, &quot;^\\D+&quot;)</code></pre>
 <ul>
 <li><strong>Extract characters before “:”</strong></li>
 </ul>
-<pre class="r"><code>str_extract(text, &quot;^[a-zA-Z0-9_]*&quot;)</code></pre>
+<pre class="r"><code>str_extract(string, &quot;^[a-zA-Z0-9_]*&quot;)</code></pre>
 <ul>
 <li><strong>Extract characters after “:”</strong></li>
 </ul>
-<pre class="r"><code>str_extract(text, &quot;(?&lt;=: )[^\n]*&quot;)</code></pre>
+<pre class="r"><code>str_extract(string, &quot;(?&lt; = : )[^\n]*&quot;)</code></pre>
 <ul>
 <li><strong>Extract characters after “[”</strong></li>
 </ul>
-<pre class="r"><code>str_extract(text, &quot;(?&lt;=\\[).*&quot;)</code></pre>
+<pre class="r"><code>str_extract(string, &quot;(?&lt; = \\[).*&quot;)</code></pre>
 <ul>
 <li><strong>Extract characters before “(”</strong></li>
 </ul>
-<pre class="r"><code>str_extract(text, &quot;^[^(]+&quot;)</code></pre>
+<pre class="r"><code>str_extract(string, &quot;^[^(]+&quot;)</code></pre>
 <ul>
 <li><strong>Extract characters between parenthesis</strong></li>
 </ul>
-<pre class="r"><code>str_extract(text, &quot;\\(.*?\\)&quot;)</code></pre>
+<pre class="r"><code>str_extract(string, &quot;\\(.*?\\)&quot;)</code></pre>
 </div>
 </div>
 <div id="filtres" class="section level2" number="2.4">
@@ -1948,20 +1948,20 @@ digit)</strong></li>
 <ul>
 <li><strong>Keep values containing string</strong></li>
 </ul>
-<pre class="r"><code>data &lt;- data |&gt; filter(grepl(&quot;mots particuliers&quot;, column) == TRUE)
+<pre class="r"><code>data &lt;- data |&gt; filter(grepl(&quot;mot particulier&quot;, column) ==  TRUE)
 data &lt;- data |&gt; filter_all(all_vars(grepl(&quot;mot&quot;, .)))</code></pre>
 <ul>
 <li><strong>Even and odd lines</strong></li>
 </ul>
-<pre class="r"><code>data |&gt; filter(row_number() %% 2 == 0) # pair
-data |&gt; filter(row_number() %% 2 == 1) # impair</code></pre>
+<pre class="r"><code>data |&gt; filter(row_number() %% 2 ==  0) # pair
+data |&gt; filter(row_number() %% 2 ==  1) # impair</code></pre>
 </div>
 <div id="tests" class="section level2" number="2.5">
 <h2><span class="header-section-number">2.5</span> Tests</h2>
 <ul>
 <li><strong>Redundancy</strong></li>
 </ul>
-<pre class="r"><code>identical(bso_data$doi, bso_data$id)</code></pre>
+<pre class="r"><code>identical(data$doi, data$id)</code></pre>
 </div>
 </div>
 <div id="manipulations-de-dataframes" class="section level1" number="3">
@@ -1971,12 +1971,12 @@ dataframes</h1>
 <li><strong>Fuzzy join</strong></li>
 </ul>
 <pre class="r"><code>library(fuzzyjoin)
-data &lt;- stringdist_left_join(data, data2, by=&quot;col_name&quot;, max_dist = 5, distance_col=&quot;distance&quot;) |&gt; 
+data &lt;- stringdist_left_join(data, data2, by = &quot;col_name&quot;, max_dist = 5, distance_col = &quot;distance&quot;) |&gt; 
   group_by(nom) |&gt; slice_min(distance)</code></pre>
 <ul>
 <li><strong>Merge 2 dataframes ~<code>rbind()</code></strong></li>
 </ul>
-<pre class="r"><code>data_merged &lt;- merge(df_1, df_2, all=TRUE) </code></pre>
+<pre class="r"><code>data_merged &lt;- merge(df_1, df_2, all = TRUE) </code></pre>
 <ul>
 <li><strong>Differences 2 dataframes</strong></li>
 </ul>
@@ -2030,14 +2030,14 @@ mutate(colonne = fct_reorder(colonne, n))</code></pre>
 </ul>
 <pre class="r"><code># Afficher plusieurs ggplots
 library(gridExtra)
-grid.arrange(g1,g2,g3, ncol=3, nrow = 1, 
-             top = grid::textGrob(&quot;Comment intervenez-vous sur ces activités ?&quot;, gp = grid::gpar(fontsize = 15, font = 2)))
+grid.arrange(g1,g2,g3, ncol = 3, nrow = 1, 
+             top = grid::textGrob(&quot;Titre&quot;, gp = grid::gpar(fontsize = 15, font = 2)))
 # Aligner les boxes
 library(cowplot)
-plot_grid(p3.1, p3.2, p3.3, p3.4, p3.5, align=&#39;vh&#39;)
+plot_grid(p3.1, p3.2, p3.3, p3.4, p3.5, align = &#39;vh&#39;)
 # Afficher plusieurs ggplotlys
 library(plotly)
-subplot(plotly_positif, plotly_negatif, nrows=1)</code></pre>
+subplot(plotly_positif, plotly_negatif, nrows = 1)</code></pre>
 <ul>
 <li><strong>Interactive graph</strong></li>
 </ul>
@@ -2054,17 +2054,17 @@ girafe(print(graph), width_svg = 15, height_svg = 12)</code></pre>
 </ul>
 <pre class="r"><code># Geométrie initiale
   geom_line(size = 1.7, alpha = 0.9, linetype = 1, color = &quot;#0066CC&quot;) +
-  geom_point(colour=&quot;#0066CC&quot;, fill=&quot;#0066CC&quot;, size = 2, pch = 21, stroke = 1.5) +
-  geom_bar(stat=&quot;identity&quot;, position = &quot;dodge&quot;, width=.6, col = &quot;white&quot;, size = 2, fill = &quot;#21468d&quot;) +
+  geom_point(colour = &quot;#0066CC&quot;, fill = &quot;#0066CC&quot;, size = 2, pch = 21, stroke = 1.5) +
+  geom_bar(stat = &quot;identity&quot;, position = &quot;dodge&quot;, width = .6, col = &quot;white&quot;, size = 2, fill = &quot;#21468d&quot;) +
   geom_bar(aes(x = forcats::fct_infreq(adequation))) + #fct_infreq pour ordonner selon count
   geom_col(position = &quot;stack&quot;, width = 0.7, color = &quot;white&quot;) +  coord_flip() + #cas particulier de geom_bar où on prend n comme Y et non count
   geom_text_wordcloud(family = &quot;Montserrat&quot;) +
 # Géométrie additionnelle
-  geom_text(aes(y = 1, label = title_projet, hjust=&quot;bottom&quot;), #aligner geom_text à gauche avec coord_flip
+  geom_text(aes(y = 1, label = title_projet, hjust = &quot;bottom&quot;), #aligner geom_text à gauche avec coord_flip
             fontface = &quot;italic&quot;, size = 2.6) +
   stat_count(geom = &quot;text&quot;, colour = &quot;white&quot;, size = 4,
              aes(label = ..count.., y = ..count..+.7), #y pour positionnement juste au dessus des barres
-             position=position_stack(vjust=0.5)) + #geom_text des geom_bar sans y
+             position = position_stack(vjust = 0.5)) + #geom_text des geom_bar sans y
   geom_vline(xintercept = -.5, linetype = 2) +</code></pre>
 <ul>
 <li><strong>Scales</strong></li>
@@ -2083,16 +2083,16 @@ girafe(print(graph), width_svg = 15, height_svg = 12)</code></pre>
   theme(legend.position = &quot;bottom&quot;,
         strip.text.x = element_text(face = &quot;bold&quot;),
         axis.title.x = element_text(margin = margin(t = 5, r = 0, b = 5, l = 0)), #augmenter marges entre texte et labels des axes
-        plot.title = element_text(hjust = 1), #titre ne déborde pas à droite
-        plot.background = element_rect(fill = &quot;#FAF3EE&quot;, colour=&quot;#FAF3EE&quot;), #background couleur Datactivist
+        plot.title = element_text(hjust = 1), #titre aligné à droite
+        plot.background = element_rect(fill = &quot;#FAF3EE&quot;, colour = &quot;#FAF3EE&quot;), #background couleur Datactivist
         panel.background = element_rect(fill = &quot;#FAF3EE&quot;, colour = &quot;#FAF3EE&quot;),
         legend.background = element_rect(fill = &quot;#FAF3EE&quot;, colour = &quot;#FAF3EE&quot;)) +</code></pre>
 <ul>
 <li><strong>Facet</strong></li>
 </ul>
 <pre class="r"><code>  facet_grid(Projet ~ ., 
-             scales = &quot;free&quot;, #scales=&quot;free&quot; pour label différents d&#39;une facette à une autre
-             space = &quot;free&quot;) + #space=&quot;free&quot; pour hauteur différentes selon le nombre d&#39;éléments par facette
+             scales = &quot;free&quot;, #scales = &quot;free&quot; pour label différents d&#39;une facette à une autre
+             space = &quot;free&quot;) + #space = &quot;free&quot; pour hauteur différentes selon le nombre d&#39;éléments par facette
   facet_zoom(x = annee &gt; 2014, split = TRUE) +
   ggforce::facet_col(facets = vars(Projet), 
                      scales = &quot;free_y&quot;, 
@@ -2103,7 +2103,7 @@ girafe(print(graph), width_svg = 15, height_svg = 12)</code></pre>
 <pre class="r"><code>  guides(fill = guide_legend(nrow = 6, byrow = TRUE,  # nombre d&#39;éléments par ligne
                              title = &quot;titre légende&quot;), # titre légende
         lwd = &quot;none&quot;,  #ne pas afficher une légende en particulier
-        col = guide_legend(title = &quot;&quot;, reverse = TRUE, override.aes = list(lwd=2))) + #lwd=2 pour ligne plus épaisse et plus visible dans la légende</code></pre>
+        col = guide_legend(title = &quot;&quot;, reverse = TRUE, override.aes = list(lwd = 2))) + #lwd = 2 pour ligne plus épaisse et plus visible dans la légende</code></pre>
 <ul>
 <li><strong>Colors</strong></li>
 </ul>
@@ -2119,14 +2119,14 @@ girafe(print(graph), width_svg = 15, height_svg = 12)</code></pre>
     mutate(fraction = Freq / sum(Freq),
            proportion = round((Freq / sum(Freq))*100),
            ymax = cumsum(fraction),
-           ymin = c(0, head(ymax, n=-1)), 
+           ymin = c(0, head(ymax, n = -1)), 
            labelPosition = (ymax + ymin) / 2) |&gt; 
     ggplot(aes(ymax = ymax, ymin = ymin, xmax = 3.3, xmin = 2, fill = species)) +
       geom_rect(col = &quot;white&quot;, linewidth = 2) +
-      geom_text(x=4, aes(y=labelPosition, label = paste(proportion,&quot;%&quot;,sep = &quot;&quot;)), color = &quot;#333333&quot;, size=7) +
-      geom_text(aes(x = 0, y = 0, label = sum(Freq)), col = &quot;#333333&quot;, alpha=0.8, size=14, fontface=&quot;bold&quot;, inherit.aes = FALSE) +
+      geom_text(x = 4, aes(y = labelPosition, label = paste(proportion,&quot;%&quot;,sep = &quot;&quot;)), color = &quot;#333333&quot;, size = 7) +
+      geom_text(aes(x = 0, y = 0, label = sum(Freq)), col = &quot;#333333&quot;, alpha = 0.8, size = 14, fontface = &quot;bold&quot;, inherit.aes = FALSE) +
       scale_fill_manual(values = c(&#39;#fecf5d&#39;, &#39;#21468d&#39;,&#39;#82888d&#39;)) +
-      coord_polar(theta=&quot;y&quot;) +
+      coord_polar(theta = &quot;y&quot;) +
       labs(title = &quot;Titre&quot;) +
       xlim(c(0, 4)) +   
       theme_void() +
@@ -2141,7 +2141,7 @@ girafe(print(graph), width_svg = 15, height_svg = 12)</code></pre>
     ggplot() +
       aes(x = sepal_length) +
       geom_histogram(bins = 7L, col = &quot;white&quot;, fill = &quot;#21468d&quot;, width = 5) +
-      geom_vline(xintercept = mean(iris$sepal_length, na.rm=TRUE), linetype = 2, col = &quot;red&quot;) +
+      geom_vline(xintercept = mean(iris$sepal_length, na.rm = TRUE), linetype = 2, col = &quot;red&quot;) +
       geom_text(aes(x = mean(sepal_length, na.rm = T), y = 1, label = paste(&quot;Moyenne :&quot;, round(mean(sepal_length, na.rm = T), 1))), 
                 col = &quot;red&quot;, fontface = &quot;italic&quot;, hjust = 0, size = 5) +
       labs(x = &quot;Valeur&quot;,y = &quot;Fréquence&quot;, title = &quot;Titre&quot;,
@@ -2169,7 +2169,7 @@ girafe(print(graph), width_svg = 15, height_svg = 12)</code></pre>
 </ul>
 <pre class="r"><code>library(lemon)
 iris |&gt; 
-  filter(species != &quot;setosa&quot;) |&gt; 
+  filter(species !=  &quot;setosa&quot;) |&gt; 
   mutate(tranche_pw = cut(petal_width, c(0.1, 0.5, seq(1, 2.5, .5)))) |&gt; 
   group_by(tranche_pw, species) |&gt; 
   summarise(Freq = n()) |&gt; ungroup() |&gt; group_by(species) |&gt; 
@@ -2177,9 +2177,9 @@ iris |&gt;
          percent = ifelse(percent &lt; 0.5, round(percent, 1), round(percent, 0))) |&gt; 
   na.omit() |&gt; 
   ungroup() |&gt; 
-  ggplot(mapping = aes(x = ifelse(species == &quot;versicolor&quot;, -Freq, Freq), y = tranche_pw, fill = species)) +
+  ggplot(mapping = aes(x = ifelse(species ==  &quot;versicolor&quot;, -Freq, Freq), y = tranche_pw, fill = species)) +
       geom_col(col = &quot;white&quot;, size = 1.3) + #col = &quot;black&quot;
-      geom_text(aes(y = tranche_pw, x = ifelse(species == &quot;versicolor&quot;, -Freq-1, Freq+1), label = paste(percent,&quot;%&quot;,sep = &quot;&quot;)), 
+      geom_text(aes(y = tranche_pw, x = ifelse(species ==  &quot;versicolor&quot;, -Freq-1, Freq+1), label = paste(percent,&quot;%&quot;,sep = &quot;&quot;)), 
                 color = &quot;#333333&quot;, size = 3, check_overlap = T) +
       scale_x_symmetric(labels = abs) + 
       scale_colour_manual(values = c(&#39;#fecf5d&#39;, &#39;#21468d&#39;),
@@ -2201,7 +2201,7 @@ iris |&gt;
     summarise(n = n()) |&gt; ungroup() |&gt; na.omit() |&gt; 
     mutate(percent = round((n / sum(n))*100, 0)) |&gt; 
     ggplot(aes(x = species, y = n))+
-        geom_bar(stat=&quot;identity&quot;, width=.6, fill = &quot;#21468d&quot;) +
+        geom_bar(stat = &quot;identity&quot;, width = .6, fill = &quot;#21468d&quot;) +
         geom_text(aes(y = n+3, x = species, label = paste(percent,&quot;%&quot;,sep = &quot;&quot;)), 
                 color = &quot;#333333&quot;, size = 3, check_overlap = T) +
         coord_flip() +
@@ -2247,9 +2247,9 @@ comp_data |&gt;
   ggplot() +
     geom_segment(aes(x = Minimum, xend = Maximum, y = variable, yend = variable, colour = variable), lwd = 10) +
     geom_segment(aes(x = Moyenne, xend = Moyenne+.05, y = variable, yend = variable), 
-                 colour = ifelse(comp_data$variable == &quot;sepal_length&quot;, &quot;white&quot;, &quot;black&quot;), lwd = 10) +
-    geom_text(aes(x = Moyenne+.2, y = variable, label = paste(&quot;Moyenne :&quot;, round(Moyenne, 1)), hjust=&quot;bottom&quot;), 
-              size = 3, col = ifelse(comp_data$variable == &quot;sepal_length&quot;, &quot;white&quot;, &quot;#333333&quot;)) +
+                 colour = ifelse(comp_data$variable ==  &quot;sepal_length&quot;, &quot;white&quot;, &quot;black&quot;), lwd = 10) +
+    geom_text(aes(x = Moyenne+.2, y = variable, label = paste(&quot;Moyenne :&quot;, round(Moyenne, 1)), hjust = &quot;bottom&quot;), 
+              size = 3, col = ifelse(comp_data$variable ==  &quot;sepal_length&quot;, &quot;white&quot;, &quot;#333333&quot;)) +
     labs(title = &quot;Titre&quot;, x = &quot;Score&quot;, y = &quot;&quot;) +
     scale_y_discrete(labels = function(x) stringr::str_wrap(x, width = 50)) +
     scale_color_manual(values = c(&quot;petal_length&quot; = &quot;#21468d&quot;, 
@@ -2275,15 +2275,15 @@ write.csv(data, &quot;~/Downloads/tableau.csv&quot;, row.names = FALSE, fileEnco
 <li><strong>Export plots</strong></li>
 </ul>
 <pre class="r"><code>saving_plot &lt;- function(graph, name, width, height) {
-  ggsave(file = glue(&quot;~/Downloads/dataviz_marg/SVG/{name}.svg&quot;), plot=graph, width=width, height=height)
-  ggsave(file = glue(&quot;~/Downloads/dataviz_marg/PNG/{name}.png&quot;), plot=graph, width=width, height=height)
+  ggsave(file = glue(&quot;~/Downloads/SVG/{name}.svg&quot;), plot = graph, width = width, height = height)
+  ggsave(file = glue(&quot;~/Downloads/PNG/{name}.png&quot;), plot = graph, width = width, height = height)
 }
-saving_plot(graph, &quot;age_histogram&quot;, 9, 5)</code></pre>
+saving_plot(graph, &quot;histogram&quot;, 9, 5)</code></pre>
 <ul>
 <li><strong>Export leaflet map</strong></li>
 </ul>
 <pre class="r"><code>library(htmlwidgets)
-saveWidget(m, file = &quot;marches_publics_MORMAL_2015.html&quot;)</code></pre>
+saveWidget(map, file = &quot;ma_carte.html&quot;)</code></pre>
 <ul>
 <li><strong>Export object created within function</strong></li>
 </ul>
@@ -2302,7 +2302,6 @@ saveWidget(m, file = &quot;marches_publics_MORMAL_2015.html&quot;)</code></pre>
 </ul>
 <pre class="r"><code>knit: (
   function(inputFile, encoding) { 
-    
     rmarkdown::render(inputFile, params = &quot;ask&quot;,  
       encoding    = encoding,
       output_dir = &quot;../reports&quot;, 
@@ -2327,14 +2326,17 @@ text-align: justify
 <ul>
 <li><strong>Python on Rmd</strong></li>
 </ul>
-<pre class="r"><code>library(reticulate)
+<pre class="r"><code># En début de Rmd
+library(reticulate)
 py_install(&quot;pandas&quot;)
-    # Utiliser un environnement virtuel
-Sys.setenv(RETICULATE_PYTHON = &quot;C://Users/tmounier/OneDrive - everis/Documentos/.virtualenvs/sek_proj/Scripts/python.exe&quot;) 
+
+# Pour utiliser un environnement virtuel
+Sys.setenv(RETICULATE_PYTHON = &quot;path/to/python.exe&quot;) 
 virtualenv_create(&quot;test_proj&quot;)
 py_install(&quot;pandas&quot;, envname = &quot;test_proj&quot;, method = &quot;auto&quot;)
 use_virtualenv(&quot;test_proj&quot;)</code></pre>
-<pre class="python"><code>import pandas
+<pre class="python"><code>#```{python}
+import pandas
 import plotly.express as px
 matrice = [[43, 57], [12, 88]]
 fig = px.imshow(matrice)
@@ -2342,7 +2344,7 @@ fig.show()</code></pre>
 <ul>
 <li><strong>Remove blank space end RMD file</strong></li>
 </ul>
-<pre class="r"><code>&lt;div class=&quot;tocify-extend-page&quot; data-unique=&quot;tocify-extend-page&quot; style=&quot;height: 0;&quot;&gt;&lt;/div&gt;</code></pre>
+<pre class="r"><code>&lt;div class = &quot;tocify-extend-page&quot; data-unique = &quot;tocify-extend-page&quot; style = &quot;height: 0;&quot;&gt;&lt;/div&gt;</code></pre>
 <ul>
 <li><strong>RMD collaboratif</strong></li>
 </ul>
@@ -2369,7 +2371,7 @@ years &lt;- 2013:2020
 numCores &lt;- 2
 registerDoParallel(numCores)
 
-foreach (year=years) %dopar% {
+foreach (year = years) %dopar% {
   subjson_bso(year)
 }
 
@@ -2377,9 +2379,13 @@ stopImplicitCluster()</code></pre>
 <ul>
 <li><strong>Icons</strong></li>
 </ul>
-<p><a href>https://fontawesome.com/v5.15/icons?d=gallery&amp;p=2</a></p>
+<p><a href>https://fontawesome.com/v5.15/icons?d = gallery&amp;p =
+2</a></p>
 <p><a href>https://ionic.io/ionicons</a></p>
 <p><a href>https://jpswalsh.github.io/academicons/</a></p>
+<div class="tocify-extend-page" data-unique="tocify-extend-page" style="height: 0;">
+
+</div>
 </div>
 
 

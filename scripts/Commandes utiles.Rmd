@@ -11,7 +11,7 @@ output:
         number_sections: true
 ---
 
-```{r setup, include=FALSE}
+```{r setup, include = FALSE}
 knitr::opts_chunk$set(echo = TRUE,
                       eval = FALSE,
                       warning = F,
@@ -58,7 +58,7 @@ xml_df_19 <- xmlToDataFrame(nodes = getNodeSet(data_19, "//marche")) |> mutate(Y
 + **bibTex**
 
 ```{r}
-hal1 <- read_bibtex("https://api.archives-ouvertes.fr/search/?q=+publicationDateY_i%3A[2018+TO+2020]+AND++(docType_s%3ACOMM)&fq=collCode_s%3AINRIA2&rows=100000&wt=bibtex")
+hal1 <- read_bibtex("https://api.archives-ouvertes.fr/search/?q = +publicationDateY_i%3A[2018+TO+2020]+AND++(docType_s%3ACOMM)&fq = collCode_s%3AINRIA2&rows = 100000&wt = bibtex")
 ```
 
 + **Multiple CSV into folder**
@@ -106,7 +106,7 @@ parse_api_open_alex <- function(start, end){
                    cols = "institutions", names_repair = "universal") |> select(doi, country_code), otherwise = NA_character_), 
         .default = NA)
         # suppression des NA et mise au format tabulaire
-    works_df <- works_df[works_df != "NA"] # replace NA (DOIs non matchés avec OpenAlex) by NULL
+    works_df <- works_df[works_df !=  "NA"] # replace NA (DOIs non matchés avec OpenAlex) by NULL
     works_df <- rrapply(works_df, condition = Negate(is.null), how = "prune") #remove NULL
     works_df <- works_df |> bind_rows()
     
@@ -141,7 +141,7 @@ library(rvest)
 data <- purrr::map(
         .x = (as.data.frame(rep(1:5, each = 1)) |> rename(page = `rep(1:5, each = 1)`))$page,
         .y = data.frame(matrix(ncol = 1, nrow = 1)),
-        .f = ~read_html(paste0("http://portal.core.edu.au/conf-ranks/?search=&by=all&source=all&sort=atitle&page=", .x)) |> html_nodes('body')  |> html_nodes('table') |> html_table(dec = ","), 
+        .f = ~read_html(paste0("http://portal.core.edu.au/conf-ranks/?search = &by = all&source = all&sort = atitle&page = ", .x)) |> html_nodes('body')  |> html_nodes('table') |> html_table(dec = ","), 
         .default = NA)
 data <- bind_rows(data)
 ```
@@ -157,23 +157,23 @@ core_millesime <- purrr::map(
         possibly(.f = ~ as.data.frame(gettxt(paste0('http://portal.core.edu.au/conf-ranks/', .x))) |> #import page par page
     rename(text = 1) |> 
     mutate(text = strsplit(as.character(text), "\n")) |> unnest(text) |> #split les éléments séparés par des "\n"
-    filter(row_number() == 10 | #nom de conférence
-               grepl("Acronym:", text) == TRUE | 
-               grepl("Source:", text) == TRUE | 
-               grepl("Rank:", text) == TRUE, #champs que l'on garde
-           grepl("DBLP", text) == FALSE) |> #retrait de la ligne contenant ce string
-    mutate(text = case_when(row_number() == 1 ~ paste("Title:", text), TRUE ~ text), #ajout du préfixe "titre:"
+    filter(row_number() ==  10 | #nom de conférence
+               grepl("Acronym:", text) ==  TRUE | 
+               grepl("Source:", text) ==  TRUE | 
+               grepl("Rank:", text) ==  TRUE, #champs que l'on garde
+           grepl("DBLP", text) ==  FALSE) |> #retrait de la ligne contenant ce string
+    mutate(text = case_when(row_number() ==  1 ~ paste("Title:", text), TRUE ~ text), #ajout du préfixe "titre:"
            champ = str_extract(text, "^[a-zA-Z0-9_]*"), #dans une nouvelle colonne ce qui est avant ":"
-           value = str_extract(text, "(?<=: )[^\n]*")) |> #dans une nouvelle colonne ce qui est après ": "
+           value = str_extract(text, "(?< = : )[^\n]*")) |> #dans une nouvelle colonne ce qui est après ": "
     select(-text) |> t() |> row_to_names(row_number = 1) |> data.frame() |> #transpose puis 1ère ligne en nom de colonnes
     pivot_longer(cols = -c(Title, Acronym), names_to = "number", values_to = "value", names_prefix = "Source|Rank") |> # format long pour rank et source quand multiples
-    mutate(col = case_when(row_number() %% 2 == 0 ~ "rank",
-                           row_number() %% 2 == 1 ~ "source")) |> #
+    mutate(col = case_when(row_number() %% 2 ==  0 ~ "rank",
+                           row_number() %% 2 ==  1 ~ "source")) |> #
     pivot_wider(names_from = col, values_from = value) |> select(-number) |> mutate(core_id = .x), otherwise = NA_character_),
         .default = NA)
 
 # Gestion des Na et mise au format tabulaire
-core_histo <- core_millesime[core_millesime != "NA"] # replace NA by NULL
+core_histo <- core_millesime[core_millesime !=  "NA"] # replace NA by NULL
 core_histo <- rrapply::rrapply(core_histo, condition = Negate(is.null), how = "prune") #remove NULL
 core_histo <- core_histo |> bind_rows()
 ```
@@ -215,7 +215,7 @@ data <- data |>
 + **Change date format**
 
 ```{r}
-data$Date <- format(as.Date(data$Date, format="%Y-%m-%d %H:%M:%S"),"%d %B %Y") #30 mai 2023
+data$Date <- format(as.Date(data$Date, format = "%Y-%m-%d %H:%M:%S"),"%d %B %Y") #30 mai 2023
 # autres formats : https://www.r-bloggers.com/2013/08/date-formats-in-r/
 ```
 
@@ -281,8 +281,8 @@ data <- data |> mutate(col_NA = coalesce(col_NA, col_replace))
 data <- data |> mutate_all(na_if, "")
 
 # NULL par NAs
-data <- data |> replace(.=="NULL", NA) 
-data[data == "null"] <- NA
+data <- data |> replace(. =  = "NULL", NA) 
+data[data ==  "null"] <- NA
 
 # Chiffres négatifs par NAs
 data <- data |> mutate(col = replace(col, which(col<0), NA))
@@ -389,21 +389,21 @@ sample(random, size = nrow(data), replace = TRUE, prob = c(9/10,0.06,0.04))
 + **Upper string and remove special characters**
 
 ```{r}
-data <- data |> mutate(col = stringi::stri_trans_general(str = gsub("-", " ", toupper(col)), id = "Latin-ASCII"))
+data <- data |> mutate(col = stringi::stri_trans_general(str = gsub("-", " ", toupper(string)), id = "Latin-ASCII"))
 ```
 
 + **Remove specific words/characters**
 
 ```{r}
-data <- data |> mutate(col = removeWords(col, c("IEEE ", "ACM ", "SIAM ")))
+data <- data |> mutate(col = removeWords(string, c("IEEE ", "ACM ", "SIAM ")))
 ```
 
 + **Remove duplicated words**
 
 ```{r}
 rem_dup_word <- function(x){
-  x <- tolower(x)
-  paste(unique(trimws(unlist(strsplit(x, split=" ", fixed=F, perl=T)))), collapse = " ")
+  #x <- tolower(x)
+  paste(unique(trimws(unlist(strsplit(x, split = " ", fixed = F, perl = T)))), collapse = " ")
 }
 rem_dup_word(x)
 ```
@@ -411,26 +411,26 @@ rem_dup_word(x)
 + **Remove isolated letters/characters**
 
 ```{r}
-data <- data |> mutate(gsub("\\W*\\b\\w\\b\\W*", " ", col))
+data <- data |> mutate(col = gsub("\\W*\\b\\w\\b\\W*", " ", string))
 ```
 
 + **Remove blank spaces at the begining (or the end)**
 
 ```{r}
-data <- data |> mutate(col = trimws(col, which = "left"))
+data <- data |> mutate(col = trimws(string, which = "left"))
 ```
 
 + **Keep first word**
 
 ```{r}
-data <- data |> mutate(first_word = word(booktitle, 1))
+data <- data |> mutate(first_word = word(string, 1))
 ```
 
 + **Extract digits**
 
 ```{r}
 library(strex)
-data <- data |> mutate(min = str_nth_number(replies, n = 1)) # extrait le 1er chiffre du string
+data <- data |> mutate(min = str_nth_number(string, n = 1)) # extrait le 1er chiffre du string
 ```
 
 + **Extract year**
@@ -442,32 +442,32 @@ data <- data |> mutate(annee = str_extract(`En quelle année ?`, "(1|2)\\d{3}"))
 + **Extract n first characters**
 
 ```{r}
-data <- data |> mutate(sub_string = substr(data$chaine_charac, 1, n))
+data <- data |> mutate(sub_string = substr(data$string, 1, n))
 ```
 
 + **Extract n last characters**
 
 ```{r}
-data <- data |> mutate(sub_string = substr(data$chaine_charac, nchar(data$chaine_charac)-n+1, nchar(data$chaine_charac)))
+data <- data |> mutate(sub_string = substr(data$string, nchar(data$string)-n+1, nchar(data$string)))
 ```
 
 + **Add digit identifiant**
 
 ```{r}
 data <- data |> mutate(num = sprintf("%02d", num)) #passer de 1 à 2 digits
-data <- data |> mutate(nom = str_pad(nom, 14, pad = "0")) #obliger à avoir 14 caractères (donc ajoute 0 en début si besoin)
+data <- data |> mutate(num = str_pad(num, 14, pad = "0")) #obliger à avoir 14 caractères (donc ajoute 0 en début si besoin)
 ```
 
 + **Remove first digit if 0**
 
 ```{r}
-data <- data |> mutate(nom = gsub("^0", "", nom))
+data <- data |> mutate(num = gsub("^0", "", num))
 ```
 
 + **Only 1 character in a string**
 
 ```{r}
-nchar(capital_word) == 1
+nchar(string) ==  1
 ```
 
 
@@ -479,8 +479,8 @@ nchar(capital_word) == 1
 + **Detect digits**
 
 ```{r}
-str_detect(string, "[0-9]") == TRUE
-grep("\\d+", data$col, value = TRUE) 
+str_detect(string, "[0-9]") ==  TRUE
+grep("\\d+", string, value = TRUE) 
 ```
 
 + **Detect special characters (i.e. no letter nor digit)**
@@ -492,43 +492,43 @@ grepl('[^[:alnum:]]', string)
 + **Detect dates with format "%Y-%m-%d %H:%M:%S"**
 
 ```{r}
-grepl("\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}", vote)
+grepl("\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}", string)
 ```
 
 + **Extract characters before first digit**
 
 ```{r}
-str_extract("NeurIPS 2020 - 34th Conference on Neural Information Processing Systems", "^\\D+")
+str_extract(string, "^\\D+")
 ```
 
 + **Extract characters before ":"**
 
 ```{r}
-str_extract(text, "^[a-zA-Z0-9_]*")
+str_extract(string, "^[a-zA-Z0-9_]*")
 ```
 
 + **Extract characters after ": "**
 
 ```{r}
-str_extract(text, "(?<=: )[^\n]*")
+str_extract(string, "(?< = : )[^\n]*")
 ```
 
 + **Extract characters after "["**
 
 ```{r}
-str_extract(text, "(?<=\\[).*")
+str_extract(string, "(?< = \\[).*")
 ```
 
 + **Extract characters before "("**
 
 ```{r}
-str_extract(text, "^[^(]+")
+str_extract(string, "^[^(]+")
 ```
 
 + **Extract characters between parenthesis**
 
 ```{r}
-str_extract(text, "\\(.*?\\)")
+str_extract(string, "\\(.*?\\)")
 ```
 
 
@@ -544,15 +544,15 @@ data <- data |> filter(!grepl(',', column)) #containing comma
 + **Keep values containing string**
 
 ```{r}
-data <- data |> filter(grepl("mots particuliers", column) == TRUE)
+data <- data |> filter(grepl("mot particulier", column) ==  TRUE)
 data <- data |> filter_all(all_vars(grepl("mot", .)))
 ```
 
 + **Even and odd lines**
 
 ```{r}
-data |> filter(row_number() %% 2 == 0) # pair
-data |> filter(row_number() %% 2 == 1) # impair
+data |> filter(row_number() %% 2 ==  0) # pair
+data |> filter(row_number() %% 2 ==  1) # impair
 ```
 
 ## Tests
@@ -560,7 +560,7 @@ data |> filter(row_number() %% 2 == 1) # impair
 + **Redundancy**
 
 ```{r}
-identical(bso_data$doi, bso_data$id)
+identical(data$doi, data$id)
 ```
 
 
@@ -572,14 +572,14 @@ identical(bso_data$doi, bso_data$id)
 
 ```{r}
 library(fuzzyjoin)
-data <- stringdist_left_join(data, data2, by="col_name", max_dist = 5, distance_col="distance") |> 
+data <- stringdist_left_join(data, data2, by = "col_name", max_dist = 5, distance_col = "distance") |> 
   group_by(nom) |> slice_min(distance)
 ```
 
 + **Merge 2 dataframes ~`rbind()`**
 
 ```{r}
-data_merged <- merge(df_1, df_2, all=TRUE) 
+data_merged <- merge(df_1, df_2, all = TRUE) 
 ```
 
 + **Differences 2 dataframes**
@@ -647,14 +647,14 @@ mutate(colonne = fct_reorder(colonne, n))
 ```{r}
 # Afficher plusieurs ggplots
 library(gridExtra)
-grid.arrange(g1,g2,g3, ncol=3, nrow = 1, 
-             top = grid::textGrob("Comment intervenez-vous sur ces activités ?", gp = grid::gpar(fontsize = 15, font = 2)))
+grid.arrange(g1,g2,g3, ncol = 3, nrow = 1, 
+             top = grid::textGrob("Titre", gp = grid::gpar(fontsize = 15, font = 2)))
 # Aligner les boxes
 library(cowplot)
-plot_grid(p3.1, p3.2, p3.3, p3.4, p3.5, align='vh')
+plot_grid(p3.1, p3.2, p3.3, p3.4, p3.5, align = 'vh')
 # Afficher plusieurs ggplotlys
 library(plotly)
-subplot(plotly_positif, plotly_negatif, nrows=1)
+subplot(plotly_positif, plotly_negatif, nrows = 1)
 ```
 
 + **Interactive graph**
@@ -676,17 +676,17 @@ girafe(print(graph), width_svg = 15, height_svg = 12)
 ```{r}
 # Geométrie initiale
   geom_line(size = 1.7, alpha = 0.9, linetype = 1, color = "#0066CC") +
-  geom_point(colour="#0066CC", fill="#0066CC", size = 2, pch = 21, stroke = 1.5) +
-  geom_bar(stat="identity", position = "dodge", width=.6, col = "white", size = 2, fill = "#21468d") +
+  geom_point(colour = "#0066CC", fill = "#0066CC", size = 2, pch = 21, stroke = 1.5) +
+  geom_bar(stat = "identity", position = "dodge", width = .6, col = "white", size = 2, fill = "#21468d") +
   geom_bar(aes(x = forcats::fct_infreq(adequation))) + #fct_infreq pour ordonner selon count
   geom_col(position = "stack", width = 0.7, color = "white") +  coord_flip() + #cas particulier de geom_bar où on prend n comme Y et non count
   geom_text_wordcloud(family = "Montserrat") +
 # Géométrie additionnelle
-  geom_text(aes(y = 1, label = title_projet, hjust="bottom"), #aligner geom_text à gauche avec coord_flip
+  geom_text(aes(y = 1, label = title_projet, hjust = "bottom"), #aligner geom_text à gauche avec coord_flip
             fontface = "italic", size = 2.6) +
   stat_count(geom = "text", colour = "white", size = 4,
              aes(label = ..count.., y = ..count..+.7), #y pour positionnement juste au dessus des barres
-             position=position_stack(vjust=0.5)) + #geom_text des geom_bar sans y
+             position = position_stack(vjust = 0.5)) + #geom_text des geom_bar sans y
   geom_vline(xintercept = -.5, linetype = 2) +
 ```
 
@@ -709,8 +709,8 @@ girafe(print(graph), width_svg = 15, height_svg = 12)
   theme(legend.position = "bottom",
         strip.text.x = element_text(face = "bold"),
         axis.title.x = element_text(margin = margin(t = 5, r = 0, b = 5, l = 0)), #augmenter marges entre texte et labels des axes
-        plot.title = element_text(hjust = 1), #titre ne déborde pas à droite
-        plot.background = element_rect(fill = "#FAF3EE", colour="#FAF3EE"), #background couleur Datactivist
+        plot.title = element_text(hjust = 1), #titre aligné à droite
+        plot.background = element_rect(fill = "#FAF3EE", colour = "#FAF3EE"), #background couleur Datactivist
         panel.background = element_rect(fill = "#FAF3EE", colour = "#FAF3EE"),
         legend.background = element_rect(fill = "#FAF3EE", colour = "#FAF3EE")) +
 ```
@@ -719,8 +719,8 @@ girafe(print(graph), width_svg = 15, height_svg = 12)
 
 ```{r}
   facet_grid(Projet ~ ., 
-             scales = "free", #scales="free" pour label différents d'une facette à une autre
-             space = "free") + #space="free" pour hauteur différentes selon le nombre d'éléments par facette
+             scales = "free", #scales = "free" pour label différents d'une facette à une autre
+             space = "free") + #space = "free" pour hauteur différentes selon le nombre d'éléments par facette
   facet_zoom(x = annee > 2014, split = TRUE) +
   ggforce::facet_col(facets = vars(Projet), 
                      scales = "free_y", 
@@ -733,7 +733,7 @@ girafe(print(graph), width_svg = 15, height_svg = 12)
   guides(fill = guide_legend(nrow = 6, byrow = TRUE,  # nombre d'éléments par ligne
                              title = "titre légende"), # titre légende
         lwd = "none",  #ne pas afficher une légende en particulier
-        col = guide_legend(title = "", reverse = TRUE, override.aes = list(lwd=2))) + #lwd=2 pour ligne plus épaisse et plus visible dans la légende
+        col = guide_legend(title = "", reverse = TRUE, override.aes = list(lwd = 2))) + #lwd = 2 pour ligne plus épaisse et plus visible dans la légende
 ```
 
 + **Colors**
@@ -756,20 +756,20 @@ library(tidyverse)
 
 + **Donut**
 
-```{r eval = T, out.width='60%', fig.align='center'}
+```{r eval = T, out.width = '60%', fig.align = 'center'}
 iris |> 
     group_by(species) |> summarise(Freq = n()) |> 
     mutate(fraction = Freq / sum(Freq),
            proportion = round((Freq / sum(Freq))*100),
            ymax = cumsum(fraction),
-           ymin = c(0, head(ymax, n=-1)), 
+           ymin = c(0, head(ymax, n = -1)), 
            labelPosition = (ymax + ymin) / 2) |> 
     ggplot(aes(ymax = ymax, ymin = ymin, xmax = 3.3, xmin = 2, fill = species)) +
       geom_rect(col = "white", linewidth = 2) +
-      geom_text(x=4, aes(y=labelPosition, label = paste(proportion,"%",sep = "")), color = "#333333", size=7) +
-      geom_text(aes(x = 0, y = 0, label = sum(Freq)), col = "#333333", alpha=0.8, size=14, fontface="bold", inherit.aes = FALSE) +
+      geom_text(x = 4, aes(y = labelPosition, label = paste(proportion,"%",sep = "")), color = "#333333", size = 7) +
+      geom_text(aes(x = 0, y = 0, label = sum(Freq)), col = "#333333", alpha = 0.8, size = 14, fontface = "bold", inherit.aes = FALSE) +
       scale_fill_manual(values = c('#fecf5d', '#21468d','#82888d')) +
-      coord_polar(theta="y") +
+      coord_polar(theta = "y") +
       labs(title = "Titre") +
       xlim(c(0, 4)) +   
       theme_void() +
@@ -780,12 +780,12 @@ iris |>
 
 + **Histogram**
 
-```{r eval = T, out.width='60%', fig.align='center'}
+```{r eval = T, out.width = '60%', fig.align = 'center'}
 iris |> 
     ggplot() +
       aes(x = sepal_length) +
       geom_histogram(bins = 7L, col = "white", fill = "#21468d", width = 5) +
-      geom_vline(xintercept = mean(iris$sepal_length, na.rm=TRUE), linetype = 2, col = "red") +
+      geom_vline(xintercept = mean(iris$sepal_length, na.rm = TRUE), linetype = 2, col = "red") +
       geom_text(aes(x = mean(sepal_length, na.rm = T), y = 1, label = paste("Moyenne :", round(mean(sepal_length, na.rm = T), 1))), 
                 col = "red", fontface = "italic", hjust = 0, size = 5) +
       labs(x = "Valeur",y = "Fréquence", title = "Titre",
@@ -798,7 +798,7 @@ iris |>
 
 + **Histogram on multiple variables**
 
-```{r eval = T, out.width='60%', fig.align='center'}
+```{r eval = T, out.width = '60%', fig.align = 'center'}
 iris |> 
   #select(1, 37:40) |> 
   reshape2::melt(id.vars = c("species")) |> 
@@ -812,10 +812,10 @@ iris |>
 
 + **Pyramid**
 
-```{r eval = T, out.width='60%', fig.align='center'}
+```{r eval = T, out.width = '60%', fig.align = 'center'}
 library(lemon)
 iris |> 
-  filter(species != "setosa") |> 
+  filter(species !=  "setosa") |> 
   mutate(tranche_pw = cut(petal_width, c(0.1, 0.5, seq(1, 2.5, .5)))) |> 
   group_by(tranche_pw, species) |> 
   summarise(Freq = n()) |> ungroup() |> group_by(species) |> 
@@ -823,9 +823,9 @@ iris |>
          percent = ifelse(percent < 0.5, round(percent, 1), round(percent, 0))) |> 
   na.omit() |> 
   ungroup() |> 
-  ggplot(mapping = aes(x = ifelse(species == "versicolor", -Freq, Freq), y = tranche_pw, fill = species)) +
+  ggplot(mapping = aes(x = ifelse(species ==  "versicolor", -Freq, Freq), y = tranche_pw, fill = species)) +
       geom_col(col = "white", size = 1.3) + #col = "black"
-      geom_text(aes(y = tranche_pw, x = ifelse(species == "versicolor", -Freq-1, Freq+1), label = paste(percent,"%",sep = "")), 
+      geom_text(aes(y = tranche_pw, x = ifelse(species ==  "versicolor", -Freq-1, Freq+1), label = paste(percent,"%",sep = "")), 
                 color = "#333333", size = 3, check_overlap = T) +
       scale_x_symmetric(labels = abs) + 
       scale_colour_manual(values = c('#fecf5d', '#21468d'),
@@ -842,13 +842,13 @@ iris |>
 
 + **Bar**
 
-```{r eval = T, out.width='60%', fig.align='center'}
+```{r eval = T, out.width = '60%', fig.align = 'center'}
 iris |> 
     group_by(species) |> 
     summarise(n = n()) |> ungroup() |> na.omit() |> 
     mutate(percent = round((n / sum(n))*100, 0)) |> 
     ggplot(aes(x = species, y = n))+
-        geom_bar(stat="identity", width=.6, fill = "#21468d") +
+        geom_bar(stat = "identity", width = .6, fill = "#21468d") +
         geom_text(aes(y = n+3, x = species, label = paste(percent,"%",sep = "")), 
                 color = "#333333", size = 3, check_overlap = T) +
         coord_flip() +
@@ -860,7 +860,7 @@ iris |>
 
 + **Radar**
 
-```{r eval = T, out.width='60%', fig.align='center'}
+```{r eval = T, out.width = '60%', fig.align = 'center'}
 library(ggradar)
 iris |> 
   select(sepal_length, sepal_length:petal_width) |> 
@@ -882,7 +882,7 @@ iris |>
 
 + **Comparison gauge**
 
-```{r eval = T, out.width='60%', fig.align='center'}
+```{r eval = T, out.width = '60%', fig.align = 'center'}
 comp_data <- data.frame("variable" = c("sepal_length", "sepal_width", "petal_length", "petal_width"),
            "Minimum" = c(min(iris$sepal_length), min(iris$sepal_width), 
                          min(iris$petal_length), min(iris$petal_width)),
@@ -896,9 +896,9 @@ comp_data |>
   ggplot() +
     geom_segment(aes(x = Minimum, xend = Maximum, y = variable, yend = variable, colour = variable), lwd = 10) +
     geom_segment(aes(x = Moyenne, xend = Moyenne+.05, y = variable, yend = variable), 
-                 colour = ifelse(comp_data$variable == "sepal_length", "white", "black"), lwd = 10) +
-    geom_text(aes(x = Moyenne+.2, y = variable, label = paste("Moyenne :", round(Moyenne, 1)), hjust="bottom"), 
-              size = 3, col = ifelse(comp_data$variable == "sepal_length", "white", "#333333")) +
+                 colour = ifelse(comp_data$variable ==  "sepal_length", "white", "black"), lwd = 10) +
+    geom_text(aes(x = Moyenne+.2, y = variable, label = paste("Moyenne :", round(Moyenne, 1)), hjust = "bottom"), 
+              size = 3, col = ifelse(comp_data$variable ==  "sepal_length", "white", "#333333")) +
     labs(title = "Titre", x = "Score", y = "") +
     scale_y_discrete(labels = function(x) stringr::str_wrap(x, width = 50)) +
     scale_color_manual(values = c("petal_length" = "#21468d", 
@@ -927,17 +927,17 @@ write.csv(data, "~/Downloads/tableau.csv", row.names = FALSE, fileEncoding = "UT
 
 ```{r}
 saving_plot <- function(graph, name, width, height) {
-  ggsave(file = glue("~/Downloads/dataviz_marg/SVG/{name}.svg"), plot=graph, width=width, height=height)
-  ggsave(file = glue("~/Downloads/dataviz_marg/PNG/{name}.png"), plot=graph, width=width, height=height)
+  ggsave(file = glue("~/Downloads/SVG/{name}.svg"), plot = graph, width = width, height = height)
+  ggsave(file = glue("~/Downloads/PNG/{name}.png"), plot = graph, width = width, height = height)
 }
-saving_plot(graph, "age_histogram", 9, 5)
+saving_plot(graph, "histogram", 9, 5)
 ```
 
 + **Export leaflet map**
 
 ```{r}
 library(htmlwidgets)
-saveWidget(m, file = "marches_publics_MORMAL_2015.html")
+saveWidget(map, file = "ma_carte.html")
 ```
 
 + **Export object created within function**
@@ -964,7 +964,6 @@ includes:
 ```{r}
 knit: (
   function(inputFile, encoding) { 
-    
     rmarkdown::render(inputFile, params = "ask",  
       encoding    = encoding,
       output_dir = "../reports", 
@@ -995,16 +994,19 @@ print(dfSummary(data_summary, style = "grid", graph.magnif = 1,
 + **Python on Rmd**
 
 ```{r}
+# En début de Rmd
 library(reticulate)
 py_install("pandas")
-    # Utiliser un environnement virtuel
-Sys.setenv(RETICULATE_PYTHON = "C://Users/tmounier/OneDrive - everis/Documentos/.virtualenvs/sek_proj/Scripts/python.exe") 
+
+# Pour utiliser un environnement virtuel
+Sys.setenv(RETICULATE_PYTHON = "path/to/python.exe") 
 virtualenv_create("test_proj")
 py_install("pandas", envname = "test_proj", method = "auto")
 use_virtualenv("test_proj")
 ```
 
 ```{python}
+#```{python}
 import pandas
 import plotly.express as px
 matrice = [[43, 57], [12, 88]]
@@ -1015,7 +1017,7 @@ fig.show()
 + **Remove blank space end RMD file**
 
 ```{r}
-<div class="tocify-extend-page" data-unique="tocify-extend-page" style="height: 0;"></div>
+<div class = "tocify-extend-page" data-unique = "tocify-extend-page" style = "height: 0;"></div>
 ```
 
 + **RMD collaboratif**
@@ -1049,7 +1051,7 @@ years <- 2013:2020
 numCores <- 2
 registerDoParallel(numCores)
 
-foreach (year=years) %dopar% {
+foreach (year = years) %dopar% {
   subjson_bso(year)
 }
 
@@ -1058,10 +1060,11 @@ stopImplicitCluster()
 
 + **Icons**
 
-[https://fontawesome.com/v5.15/icons?d=gallery&p=2]()
+[https://fontawesome.com/v5.15/icons?d = gallery&p = 2]()
 
 [https://ionic.io/ionicons]()
 
 [https://jpswalsh.github.io/academicons/]()
 
 
+<div class = "tocify-extend-page" data-unique = "tocify-extend-page" style = "height: 0;"></div>
