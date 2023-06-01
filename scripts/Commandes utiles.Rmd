@@ -58,7 +58,7 @@ xml_df_19 <- xmlToDataFrame(nodes = getNodeSet(data_19, "//marche")) |> mutate(Y
 + **bibTex**
 
 ```{r}
-hal1 <- read_bibtex("https://api.archives-ouvertes.fr/search/?q = +publicationDateY_i%3A[2018+TO+2020]+AND++(docType_s%3ACOMM)&fq = collCode_s%3AINRIA2&rows = 100000&wt = bibtex")
+hal1 <- read_bibtex("https://api.archives-ouvertes.fr/search/?q=+publicationDateY_i%3A[2018+TO+2020]+AND++(docType_s%3ACOMM)&fq=collCode_s%3AINRIA2&rows=100000&wt=bibtex")
 ```
 
 + **Multiple CSV into folder**
@@ -141,7 +141,7 @@ library(rvest)
 data <- purrr::map(
         .x = (as.data.frame(rep(1:5, each = 1)) |> rename(page = `rep(1:5, each = 1)`))$page,
         .y = data.frame(matrix(ncol = 1, nrow = 1)),
-        .f = ~read_html(paste0("http://portal.core.edu.au/conf-ranks/?search = &by = all&source = all&sort = atitle&page = ", .x)) |> html_nodes('body')  |> html_nodes('table') |> html_table(dec = ","), 
+        .f = ~read_html(paste0("http://portal.core.edu.au/conf-ranks/?search=&by=all&source=all&sort=atitle&page=", .x)) |> html_nodes('body')  |> html_nodes('table') |> html_table(dec = ","), 
         .default = NA)
 data <- bind_rows(data)
 ```
@@ -281,7 +281,7 @@ data <- data |> mutate(col_NA = coalesce(col_NA, col_replace))
 data <- data |> mutate_all(na_if, "")
 
 # NULL par NAs
-data <- data |> replace(. =  = "NULL", NA) 
+data <- data |> replace(. == "NULL", NA) 
 data[data ==  "null"] <- NA
 
 # Chiffres négatifs par NAs
@@ -510,13 +510,13 @@ str_extract(string, "^[a-zA-Z0-9_]*")
 + **Extract characters after ": "**
 
 ```{r}
-str_extract(string, "(?< = : )[^\n]*")
+str_extract(string, "(?<=: )[^\n]*")
 ```
 
 + **Extract characters after "["**
 
 ```{r}
-str_extract(string, "(?< = \\[).*")
+str_extract(string, "(?<=\\[).*")
 ```
 
 + **Extract characters before "("**
