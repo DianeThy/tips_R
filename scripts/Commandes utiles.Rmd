@@ -26,12 +26,6 @@ Ce document vise à rassembler les commandes utiles pour programmer en R.
 
 # Départ d'analyse
 
-## Création df
-
-```{r}
-x <- data.frame(col1 = c("BASSIN DE POMPEY", "CC AURE ET LOURON", "CC DU BRIANCONNAIS"),
-                col2 = c(2, 1, 7))
-```
 
 ## Import données
 
@@ -41,10 +35,8 @@ x <- data.frame(col1 = c("BASSIN DE POMPEY", "CC AURE ET LOURON", "CC DU BRIANCO
 ```{r}
 decp_Lambersart <- fromJSON(txt = "../data/decp/decp_Lambersart.json", flatten = T)
 decp_Lambersart <- as.data.frame(decp_Lambersart$marches) |> 
-  rename(id_marche = id)|> 
   mutate(titulaires = map(titulaires, ~ mutate(.x, id = as.character(id)))) |> 
-  unnest(cols = c(titulaires)) |> 
-  select(-modifications)
+  unnest(cols = c(titulaires))
 ```
 
 + **XML**
@@ -66,7 +58,7 @@ hal1 <- read_bibtex("https://api.archives-ouvertes.fr/search/?q=+publicationDate
 ```{r}
 rbindlist_fread <- function(path, pattern = "*.csv") {
     files = list.files(path, pattern, full.names = TRUE)
-    rbindlist(lapply(files, function(x) fread(x)))
+    data.table::rbindlist(lapply(files, function(x) fread(x)))
 }
 data <- rbindlist_fread("mon/super/path")
 ```
@@ -121,7 +113,7 @@ parse_api_open_alex(1,50000)
 ```
 
 
-### Scraping
+### Web scraping
 
 + **Easy scraping (data into table in 1 page)**
 
@@ -203,6 +195,12 @@ data <- data |>
   janitor::clean_names()
 ```
 
++ **Rename all columns with suffix except one**
+
+```{r}
+rename_at(vars(-Name, -State), ~ paste0(., '_2017'))
+```
+
 
 
 
@@ -234,6 +232,24 @@ library(mondate)
 data <- data |> mutate(date_fin = as.mondate(date_debut) + duree) #duree en mois
 ```
 
++ **Round multiple columns**
+
+```{r}
+data <- data |> mutate_at(vars(var_3:var_17), ~round(.,0))
+```
+
+
+### Valeurs manquantes, NAs
+
++ **Fill NAs with previous values by group**
+
+```{r}
+data <- data |> 
+    group_by(`Référence commande`) |> 
+    fill(everything(), .direction = "downup") |> 
+    ungroup()
+```
+
 
 
 ### Remplacement de valeurs
@@ -249,7 +265,7 @@ data <- data |> mutate_all(function(x) gsub("pattern1 | pattern2", "replacement"
 ```
 
 
-+ **Remove string**
++ **Remove all special characters**
 
 ```{r}
 # Supprimer les caractères spéciaux ex : ? ' !
@@ -311,7 +327,6 @@ data <- data |>
 ```
 
 
-
 ### Format de variables
 
 + **Pivot longer**
@@ -353,6 +368,12 @@ unnested_bso <- unnested_bso |> mutate(journal_issns = paste0(unique(na.omit(jou
 data <- data |> mutate(new_col = coalesce(col1,col2,col3))
 ```
 
++ **Calculate sum accross mutliple columns df**
+
+```{r}
+data |> rowwise() |> mutate(sum_multiple = sum(c_across(var_3:var_17)))
+```
+
 ### Valeurs aléatoires, indices, `rep()`, `seq()`
 
 + **Index rep**
@@ -390,6 +411,14 @@ sample(random, size = nrow(data), replace = TRUE, prob = c(9/10,0.06,0.04))
 
 ```{r}
 data <- data |> mutate(col = stringi::stri_trans_general(str = gsub("-", " ", toupper(string)), id = "Latin-ASCII"))
+```
+
++ **Upper first letter of both words**
+
+```{r}
+library(tools)
+toTitleCase(tolower("MY STRING"))
+toTitleCase("my other string")
 ```
 
 + **Remove specific words/characters**
@@ -519,6 +548,12 @@ str_extract(string, "(?<=: )[^\n]*")
 str_extract(string, "(?<=\\[).*")
 ```
 
++ **Extract characters before "["**
+
+```{r}
+str_extract("string bla [da]", "^.*\\[") #crochet inclu dans l'extraction
+```
+
 + **Extract characters before "("**
 
 ```{r}
@@ -555,16 +590,82 @@ data |> filter(row_number() %% 2 ==  0) # pair
 data |> filter(row_number() %% 2 ==  1) # impair
 ```
 
-## Tests
++ **All columns equal a value**
 
-+ **Redundancy**
+```{r}
+data |> group_by(cat) |> filter(across(where(is.character), ~. != "N/A"))
+```
+
+## Fonctions
+
+
++ **Export object created within function**
+
+```{r}
+assign(glue("n_{year}"), n, envir = .GlobalEnv)
+```
+
++ **Detach created object from environment**
+
+```{r}
+rm(ls = inter_bv, ratio, area_commune, area_2017)
+```
+
++ **Possibly function treatment**
+
+```{r}
+tryCatch(heures_prevues(salarie), error = function(e) NULL)
+```
+
++ **Use function saved in other directory**
+
+```{r}
+source(here("functions", "match_commune.R"))
+object <- memoise::memoise(match_commune, cache = memoise::cache_filesystem(here("cache")))
+```
+
++ **Call variable within created function**
+
+```{r}
+fonction <- function(data, variable){
+    data |> filter({{variable}} == 2)
+}
+```
+
++ **Rename column wihtin created function**
+
+```{r}
+fonction <- function(new_cols, cols){
+    data |> rename({{ new_cols }} := {{ cols }}) 
+}
+```
+
++ **Huge utilisation created function**
+
+```{r}
+library(purrr)
+purrr::map(.x = c(13:16, 18, 26:38, 40:44, 46, 49, 55, 66:68, 70, 84:90, 93:96, 99:108, 111:113, 115, 139, 162:178, 180, 181, 188:197),
+          .f = ~table_recap_simple(.x))
+table_recap_stat <- rbind(lapply(ls(pattern="^all_stat_"), function(x) get(x))) |> 
+    bind_rows()
+```
+
+
+
+## Autre
+
++ **Redundancy test**
 
 ```{r}
 identical(data$doi, data$id)
 ```
 
++ **Increase total system memory R session**
 
-
+```{r}
+library(unix) #pour linux
+rlimit_as(1e20)  #increases to ~12GB
+```
 
 # Manipulations de dataframes
 
@@ -580,6 +681,12 @@ data <- stringdist_left_join(data, data2, by = "col_name", max_dist = 5, distanc
 
 ```{r}
 data_merged <- merge(df_1, df_2, all = TRUE) 
+```
+
++ **Alternative `rbind()` when different number of columns**
+
+```{r}
+data <- list(cat1, cat2) |>  bind_rows(.id = 'origine_df')
 ```
 
 + **Differences 2 dataframes**
@@ -630,6 +737,12 @@ data <- data |> group_by(group) |> count(column)   #dplyr
 data <- data |> group_by(group, column) |> summarise(n = n()) #dplyr
 ```
 
++ **Sum in pipe for specific rows**
+
+```{r}
+data |> mutate(new_cat = sum(n[Catégorie2 == "Total"]))
+```
+
 
 ## Visualisations
 
@@ -655,6 +768,10 @@ plot_grid(p3.1, p3.2, p3.3, p3.4, p3.5, align = 'vh')
 # Afficher plusieurs ggplotlys
 library(plotly)
 subplot(plotly_positif, plotly_negatif, nrows = 1)
+
+# Pas de message grid.arrange() dans rmd
+graph <- grid.arrange(g1,g2)
+grid::grid.draw(graph)
 ```
 
 + **Interactive graph**
@@ -668,6 +785,61 @@ ggplotly(graph, tooltip = c("text")) |>
 girafe(print(graph), width_svg = 15, height_svg = 12)
 ```
 
++ **Custom theme() BBC**
+
+```{r}
+font <- "Helvetica"
+custom_theme <- function (){
+    font <- "Helvetica"
+    ggplot2::theme(plot.title = ggplot2::element_text(family = font,size = 21, face = "bold", color = "#222222"), 
+        plot.subtitle = ggplot2::element_text(family = font,size = 18, face = "italic", margin = ggplot2::margin(0, 0, 9, 0)), 
+        plot.caption = ggplot2::element_text(family = font,size = 18, margin = ggplot2::margin(9, 0, 9, 0)), 
+        legend.title = ggplot2::element_text(family = font, size = 18, color = "#222222"), 
+        legend.position = "top", 
+        legend.text.align = 0, 
+        legend.background = ggplot2::element_blank(),
+        legend.key = ggplot2::element_blank(),
+        legend.text = ggplot2::element_text(family = font, size = 18,color = "#222222"), 
+        axis.text = ggplot2::element_text(family = font, size = 15,color = "#222222"), 
+        axis.text.x = ggplot2::element_text(margin = ggplot2::margin(5,b = 10)), 
+        axis.title = ggplot2::element_text(family = font, size = 18,color = "#222222"),
+        axis.ticks = ggplot2::element_blank(),
+        axis.line = ggplot2::element_blank(), 
+        panel.grid.minor = ggplot2::element_blank(),
+        panel.grid.major.y = ggplot2::element_line(color = "#cbcbcb"),
+        panel.grid.major.x = ggplot2::element_blank(), 
+        panel.background = ggplot2::element_blank(),
+        strip.background = ggplot2::element_rect(fill = "white"),
+        strip.text = ggplot2::element_text(size = 22, hjust = 0, face = "bold"))
+}
+custom_theme_largeG <- function (){
+    font <- "Helvetica"
+    ggplot2::theme(plot.title = ggplot2::element_text(family = font,size = 25, face = "bold", color = "#222222"), 
+        plot.subtitle = ggplot2::element_text(family = font,size = 18, face = "italic", margin = ggplot2::margin(0, 0, 9, 0)), 
+        plot.caption = ggplot2::element_text(family = font,size = 18, margin = ggplot2::margin(9, 0, 9, 0)), 
+        legend.title = ggplot2::element_text(family = font, size = 18, color = "#222222"), 
+        legend.position = "top", 
+        legend.text.align = 0, 
+        legend.background = ggplot2::element_blank(),
+        legend.key = ggplot2::element_blank(),
+        legend.text = ggplot2::element_text(family = font, size = 18,color = "#222222"), 
+        axis.text = ggplot2::element_text(family = font, size = 24,color = "#222222"), 
+        axis.text.x = ggplot2::element_text(margin = ggplot2::margin(5,b = 10)), 
+        axis.title = ggplot2::element_text(family = font, size = 27,color = "#222222"),
+        axis.ticks = ggplot2::element_blank(),
+        axis.line = ggplot2::element_blank(), 
+        panel.grid.minor = ggplot2::element_blank(),
+        panel.grid.major.y = ggplot2::element_line(color = "#cbcbcb"),
+        panel.grid.major.x = ggplot2::element_blank(), 
+        panel.background = ggplot2::element_blank(),
+        strip.background = ggplot2::element_rect(fill = "white"),
+        strip.text = ggplot2::element_text(size = 22, hjust = 0, face = "bold"))
+}
+
+# change grid when coord_flip()
+theme(panel.grid.major.x = ggplot2::element_line(color = "#cbcbcb"),
+      panel.grid.major.y = ggplot2::element_blank())
+```
 
 ### Par élément
 
@@ -683,7 +855,9 @@ girafe(print(graph), width_svg = 15, height_svg = 12)
   geom_text_wordcloud(family = "Montserrat") +
 # Géométrie additionnelle
   geom_text(aes(y = 1, label = title_projet, hjust = "bottom"), #aligner geom_text à gauche avec coord_flip
-            fontface = "italic", size = 2.6) +
+            fontface = "italic", size = 5) +
+  geom_label(aes(y = 1, label = title_projet, hjust = "bottom"), fontface = "italic", size = 2.6,
+             fill = "white", label.size = NA) + #white background and remove black borders
   stat_count(geom = "text", colour = "white", size = 4,
              aes(label = ..count.., y = ..count..+.7), #y pour positionnement juste au dessus des barres
              position = position_stack(vjust = 0.5)) + #geom_text des geom_bar sans y
@@ -698,8 +872,16 @@ girafe(print(graph), width_svg = 15, height_svg = 12)
   scale_y_continuous(breaks = scales::pretty_breaks()) + #breaks réguliers, plus lisible (pas d'axe)
   scale_y_continuous(labels = scales::percent, limits = c(0,1)) + # pourcentages
   scale_y_discrete(limits = 1:12) + #valeurs discrètes
-  scale_y_discrete(labels = function(x) stringr::str_wrap(x, width = 70)) + #axis-text trop longs sur plusieurs lignes
+  scale_y_discrete(labels = function(x) stringr::str_wrap(x, width = 50)) + #axis-text trop longs sur plusieurs lignes
   scale_color_continuous(high = "#132B43", low = "#56B1F7") #reverse color
+  scale_y_continuous(breaks = c(0, 2, 4, 6, 8, 10), limits = c(-.2, 10)) # de 0 à 10 avec les breaks spécifiés
+```
+
++ **Labs**
+
+```{r}
+# titres trop longs, automatiquement coupés
+title = stringr::str_wrap("Commençons par la protection de la vie privée. Considérez-vous que votre structure est en conformité avec le RGPD ?", width = 45)
 ```
 
 + **Theme**
@@ -707,9 +889,10 @@ girafe(print(graph), width_svg = 15, height_svg = 12)
 ```{r}
   theme_classic() +
   theme(legend.position = "bottom",
-        strip.text.x = element_text(face = "bold"),
+        panel.grid.major.y = ggplot2::element_line(color = "#cbcbcb"), #lignes horizontales fond graphique en gris (BBC thème)
+        strip.text.x = element_text(face = "bold"), #label des facettes
         axis.title.x = element_text(margin = margin(t = 5, r = 0, b = 5, l = 0)), #augmenter marges entre texte et labels des axes
-        plot.title = element_text(hjust = 1), #titre aligné à droite
+        plot.title = element_textbox_simple(hjust = 1), #hujst: titre aligné à droite, element_textbox_simple line break auto titre
         plot.background = element_rect(fill = "#FAF3EE", colour = "#FAF3EE"), #background couleur Datactivist
         panel.background = element_rect(fill = "#FAF3EE", colour = "#FAF3EE"),
         legend.background = element_rect(fill = "#FAF3EE", colour = "#FAF3EE")) +
@@ -725,6 +908,7 @@ girafe(print(graph), width_svg = 15, height_svg = 12)
   ggforce::facet_col(facets = vars(Projet), 
                      scales = "free_y", 
                      space = "free") # pour avoir scales et face de facet_grid avec labels to the top de facet_wrap
+  facet_wrap(~vote, scales='free_x') + scale_y_continuous(limits=c(0 ,50)) # pour avoir les ticks sur chaque facettes et pas juste celles du bas
 ```
 
 + **Legend**
@@ -847,12 +1031,14 @@ iris |>
     group_by(species) |> 
     summarise(n = n()) |> ungroup() |> na.omit() |> 
     mutate(percent = round((n / sum(n))*100, 0)) |> 
+    mutate(species = fct_reorder(species, n)) |> 
     ggplot(aes(x = species, y = n))+
         geom_bar(stat = "identity", width = .6, fill = "#21468d") +
         geom_text(aes(y = n+3, x = species, label = paste(percent,"%",sep = "")), 
                 color = "#333333", size = 3, check_overlap = T) +
         coord_flip() +
         labs(x = "", y = "Fréquence", title = "Titre") +
+        scale_y_discrete(labels = function(x) stringr::str_wrap(x, width = 70)) + #axis-text trop longs sur plusieurs lignes
         theme_classic() +
         theme(plot.title = element_text(face = "bold"),
               axis.title.x = element_text(margin = margin(t = 10, r = 0, b = 0, l = 0)))
@@ -910,6 +1096,60 @@ comp_data |>
           plot.title = element_text(face = "bold"))
 ```
 
++ **Infographie simple**
+
+```{r}
+library(icons)
+library(tidyverse)
+# Table
+df <- data.frame(
+    x = c(2, 8.5, 15, 21.5),
+    y = rep(6.5, 4),
+    h = rep(4.25, 4),
+    w = rep(6.25, 4),
+    value = c(5, 7, 17, 5),
+    info = c("Communes",
+             "Participants",
+             "Jeux de données \nouverts",
+             "Réutilisations"),
+    color = factor(1:4)
+)
+
+# Graphique
+ggplot(df, aes(x, y, height = h, width = w, label = info)) +
+    ## Create the tiles using the `color` column
+    geom_tile(aes(fill = color)) +
+    ## Add the numeric values as text in `value` column
+    geom_text(color = "white", fontface = "bold", size = 16,
+              aes(label = ifelse(value > 999, format(as.integer(value, 0), nsmall = 1, big.mark = "."), value), 
+                  x = x, y = y + 0.7), 
+              hjust = 0.5) +
+    ## Add the labels for each box stored in the `info` column
+    geom_text(color = "white", fontface = "bold", size = 10,
+              aes(label = info, x = x - 2.9, y = y - 1), hjust = 0) +
+    coord_fixed() +
+    #scale_fill_manual(type = "qual", palette = "Dark2") +
+    scale_fill_manual(values = c("#9bcea4", "#ef7875", "#ffcc00", "#23ae84", "#fecf5d", "#21468d")) +
+    ## Use `geom_text()` to add the icons by specifying the unicode symbol.
+    theme_void() +
+    guides(fill = FALSE)
+```
+
+## Tables
+
++ `gttable()`
+
+```{r}
+
+```
+
++ `DT::datatable()`
+
+```{r}
+
+
+```
+
 
 
 ---
@@ -940,11 +1180,6 @@ library(htmlwidgets)
 saveWidget(map, file = "ma_carte.html")
 ```
 
-+ **Export object created within function**
-
-```{r}
-assign(glue("n_{year}"), n, envir = .GlobalEnv)
-```
 
 
 ----
@@ -989,6 +1224,16 @@ print(dfSummary(data_summary, style = "grid", graph.magnif = 1,
                 col.widths  = c(300, 200, 100, 50, 20)),
       max.tbl.height = 600,
       method = "render")
+```
+
++ **Use installed font family**
+
+```{r}
+library(showtext)
+font_add("Nexa", regular = "Nexa Bold.otf")
+font_add("Trade Gothic", regular = "Trade Gothic.otf")
+showtext_auto()
+# then specify on the CSS the name of the font
 ```
 
 + **Python on Rmd**
