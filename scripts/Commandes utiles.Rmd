@@ -265,7 +265,7 @@ data <- data |> mutate_all(function(x) gsub("pattern1 | pattern2", "replacement"
 ```
 
 
-+ **Remove all special characters**
++ **Remove special characters (all)**
 
 ```{r}
 # Supprimer les caractères spéciaux ex : ? ' !
@@ -362,6 +362,13 @@ unnested_bso <- unnested_bso |> mutate(journal_issns = paste0(unique(na.omit(jou
 
 ## Création de variables
 
++ **Create column if it does not already exist**
+
+```{r}
+datat <- data |> mutate(`NA` = ifelse("NA" %in% names(data), `NA`, "0%"))
+```
+
+
 + **Merge 2 columns into 1**
 
 ```{r}
@@ -372,6 +379,12 @@ data <- data |> mutate(new_col = coalesce(col1,col2,col3))
 
 ```{r}
 data |> rowwise() |> mutate(sum_multiple = sum(c_across(var_3:var_17)))
+```
+
++ **Calculate difference between rows by group**
+
+```{r}
+data |> group_by(Structure) |> mutate(ecart = Pourcentage - lag(Pourcentage))
 ```
 
 ### Valeurs aléatoires, indices, `rep()`, `seq()`
@@ -546,6 +559,7 @@ str_extract(string, "(?<=: )[^\n]*")
 
 ```{r}
 str_extract(string, "(?<=\\[).*")
+substr(Question, 1, nchar(Question)-1) #remove last character
 ```
 
 + **Extract characters before "["**
@@ -564,6 +578,18 @@ str_extract(string, "^[^(]+")
 
 ```{r}
 str_extract(string, "\\(.*?\\)")
+```
+
++ **Extract characters after blankspace**
+
+```{r}
+str_extract(string, "\\s+(.*)")
+```
+
++ **Extract all numbers and "+" character, and collapse into 1 cell**
+
+```{r}
+sapply(str_extract_all("+3214FSEtest!! 1", "[\\d+]+"), function(x) paste(x,collapse=""))
 ```
 
 
@@ -740,7 +766,7 @@ data <- data |> group_by(group, column) |> summarise(n = n()) #dplyr
 + **Sum in pipe for specific rows**
 
 ```{r}
-data |> mutate(new_cat = sum(n[Catégorie2 == "Total"]))
+data |> mutate(new_cat = sum(n[Catégorie2 == "Total"])) #[]
 ```
 
 
@@ -782,7 +808,20 @@ ggplotly(graph, tooltip = c("text")) |>
     layout(xaxis = list(autorange = TRUE), yaxis = list(autorange = TRUE)) #auto adjust scale when click on element
 
 # Passer en giraph : mettre les geométries en interactif !! ex: geom_segment_interactive()
+graphc <- ggplot(data, aes(x = Réponses, y = Pourcentage, fill = Edition,
+                              tooltip = paste0(Pourcentage*100, "% en ", Edition))) +#texte au survol
+    geom_point_interactive() + 
+    theme_minimal()
 girafe(print(graph), width_svg = 15, height_svg = 12)
+```
+
++ **Highlight bar on stacked barplot with alpha**
+
+```{r}
+data |> 
+  ggplot(aes(y = n)) +
+  geom_col(aes(x = cycle, fill = rowname, alpha = cycle != "Planification, PGD"), color = "white", position = "stack", width = 0.7) +
+  scale_alpha_manual(values=c(1, .4))
 ```
 
 + **Custom theme() BBC**
@@ -794,6 +833,8 @@ custom_theme <- function (){
     ggplot2::theme(plot.title = ggplot2::element_text(family = font,size = 21, face = "bold", color = "#222222"), 
         plot.subtitle = ggplot2::element_text(family = font,size = 18, face = "italic", margin = ggplot2::margin(0, 0, 9, 0)), 
         plot.caption = ggplot2::element_text(family = font,size = 18, margin = ggplot2::margin(9, 0, 9, 0)), 
+        plot.title.position = "plot",
+        plot.caption.position = "plot",
         legend.title = ggplot2::element_text(family = font, size = 18, color = "#222222"), 
         legend.position = "top", 
         legend.text.align = 0, 
@@ -817,6 +858,8 @@ custom_theme_largeG <- function (){
     ggplot2::theme(plot.title = ggplot2::element_text(family = font,size = 25, face = "bold", color = "#222222"), 
         plot.subtitle = ggplot2::element_text(family = font,size = 18, face = "italic", margin = ggplot2::margin(0, 0, 9, 0)), 
         plot.caption = ggplot2::element_text(family = font,size = 18, margin = ggplot2::margin(9, 0, 9, 0)), 
+        plot.title.position = "plot", #titre commence où y-axis commencent !!
+        plot.caption.position = "plot",
         legend.title = ggplot2::element_text(family = font, size = 18, color = "#222222"), 
         legend.position = "top", 
         legend.text.align = 0, 
@@ -849,19 +892,25 @@ theme(panel.grid.major.x = ggplot2::element_line(color = "#cbcbcb"),
 # Geométrie initiale
   geom_line(size = 1.7, alpha = 0.9, linetype = 1, color = "#0066CC") +
   geom_point(colour = "#0066CC", fill = "#0066CC", size = 2, pch = 21, stroke = 1.5) +
-  geom_bar(stat = "identity", position = "dodge", width = .6, col = "white", size = 2, fill = "#21468d") +
+  geom_bar(position = position_dodge(.9), stat = "identity", width = .8, fill = "#21468d") + #.9 et width pour barres pas collées
   geom_bar(aes(x = forcats::fct_infreq(adequation))) + #fct_infreq pour ordonner selon count
   geom_col(position = "stack", width = 0.7, color = "white") +  coord_flip() + #cas particulier de geom_bar où on prend n comme Y et non count
   geom_text_wordcloud(family = "Montserrat") +
+    
 # Géométrie additionnelle
   geom_text(aes(y = 1, label = title_projet, hjust = "bottom"), #aligner geom_text à gauche avec coord_flip
-            fontface = "italic", size = 5) +
+            fontface = "italic", size = 5, hjust = 0) +
   geom_label(aes(y = 1, label = title_projet, hjust = "bottom"), fontface = "italic", size = 2.6,
-             fill = "white", label.size = NA) + #white background and remove black borders
+             fill = "white", label.size = NA, hjust = 0) + #white background and remove black borders à la fin sinon marche pas !
+  geom_label(aes(y = 1, label = title_projet, hjust = "bottom", group = groupes), fontface = "italic", size = 2.6,
+             fill = "white", label.size = NA, position = position_dodge(width = .9), hjust = 0) + #pour double barres plot (dodge)
   stat_count(geom = "text", colour = "white", size = 4,
              aes(label = ..count.., y = ..count..+.7), #y pour positionnement juste au dessus des barres
              position = position_stack(vjust = 0.5)) + #geom_text des geom_bar sans y
-  geom_vline(xintercept = -.5, linetype = 2) +
+  geom_vline(xintercept = -.5, linetype = 2, color = "#0066CC") +
+    
+# Annotate a graph
+coord_fixed(clip = 'off') # geom_label() déborde du graph
 ```
 
 + **Scales**
@@ -875,6 +924,13 @@ theme(panel.grid.major.x = ggplot2::element_line(color = "#cbcbcb"),
   scale_y_discrete(labels = function(x) stringr::str_wrap(x, width = 50)) + #axis-text trop longs sur plusieurs lignes
   scale_color_continuous(high = "#132B43", low = "#56B1F7") #reverse color
   scale_y_continuous(breaks = c(0, 2, 4, 6, 8, 10), limits = c(-.2, 10)) # de 0 à 10 avec les breaks spécifiés
+  scale_fill_manual(values = c("Non, mais c’est prévu dans les 12 prochains mois" = "#e1b44d", 
+                             "Oui, au cours des deux dernières années" = "#323465", 
+                             "Oui" = "#33bbc9"),
+                  labels = c("Non, mais c’est prévu dans les 12 prochains mois" = "Prévue dans les 12 prochains mois", 
+                             "Oui, au cours des deux dernières années" = "Engagée au cours des deux dernières années", 
+                             "Oui" = "Engagée"), #rename categories legend
+                  breaks = c("Oui", "Oui, au cours des deux dernières années", "Non, mais c’est prévu dans les 12 prochains mois")) #order items legend
 ```
 
 + **Labs**
@@ -882,6 +938,14 @@ theme(panel.grid.major.x = ggplot2::element_line(color = "#cbcbcb"),
 ```{r}
 # titres trop longs, automatiquement coupés
 title = stringr::str_wrap("Commençons par la protection de la vie privée. Considérez-vous que votre structure est en conformité avec le RGPD ?", width = 45)
+
+# titres avec des mots colorés
+library(ggtext)
+ggplot(data) +
+    geom_point() +
+    labs(title = "Décorrelation entre la phase <span style='color: #323465; font-size: 23pt;'>Analyse, traitement, calcul</span> et les autres phases du cycle de vie") +
+    theme(plot.title = element_markdown()) #coloré et taille plus grande
+
 ```
 
 + **Theme**
@@ -892,10 +956,12 @@ title = stringr::str_wrap("Commençons par la protection de la vie privée. Cons
         panel.grid.major.y = ggplot2::element_line(color = "#cbcbcb"), #lignes horizontales fond graphique en gris (BBC thème)
         strip.text.x = element_text(face = "bold"), #label des facettes
         axis.title.x = element_text(margin = margin(t = 5, r = 0, b = 5, l = 0)), #augmenter marges entre texte et labels des axes
-        plot.title = element_textbox_simple(hjust = 1), #hujst: titre aligné à droite, element_textbox_simple line break auto titre
+        plot.title = element_textbox_simple(hjust = 1), #hjust: titre aligné à droite, element_textbox_simple line break auto titre
         plot.background = element_rect(fill = "#FAF3EE", colour = "#FAF3EE"), #background couleur Datactivist
         panel.background = element_rect(fill = "#FAF3EE", colour = "#FAF3EE"),
-        legend.background = element_rect(fill = "#FAF3EE", colour = "#FAF3EE")) +
+        legend.background = element_rect(fill = "#FAF3EE", colour = "#FAF3EE"),
+        legend.box = "vertical", legend.box.just = "left", #multiple guide_legend each one on new row, for top legend 
+        ) +
 ```
 
 + **Facet**
@@ -1135,6 +1201,138 @@ ggplot(df, aes(x, y, height = h, width = w, label = info)) +
     guides(fill = FALSE)
 ```
 
++ **Correlation matrix with ggplot**
+
+```{r}
+    # couleurs
+col <- colorRampPalette(c("#BB4444", "#EE9988", "#FFFFFF", "#77AADD", "#4477AA"))
+bgcolors <- matrix("black", nrow(matrix), ncol(matrix),dimnames = dimnames(matrix))
+bgcolors[,2] <- "red"
+bgcolors <- bgcolors[lower.tri(bgcolors, diag=TRUE)]
+    # matrice
+ggcorrplot(matrix, hc.order = T, type = "lower", show.diag = TRUE, legend.title = "",
+           lab = TRUE, lab_col = bgcolors, colors = c("#BB4444", "white", "#4477AA")) +
+    labs(title = stringr::str_wrap("Décorrelation entre la phase <span style='color: red;'>Analyse, traitement, calcul</span> et les autres phases du cycle de vie", width = 50), 
+         subtitle = "Les phases de dépôt et de partage fortement connectées entre elles", 
+         caption = "Sur quelle(s) partie(s) du cycle de vie des données intervenez-vous ? - 5642 réponses") +
+    theme(axis.text.y = element_blank(),
+          panel.grid = element_blank(),
+          plot.subtitle = element_markdown(size = 15),
+          plot.title = element_markdown(size = 18, lineheight = 2),
+          plot.caption = element_text(size = 15, face = "italic", hjust = 0, color = "#cbcbcb")) +
+    geom_label(aes(x = 6, y = 7), label = "Dépot", family = font, vjust = .4, hjust = "right", 
+               fill = "white", label.size = NA) +
+    geom_label(aes(x = 5, y = 6), label = "Préparation du dépôt", family = font, vjust = .4, hjust = "right", 
+               fill = "white", label.size = NA) +
+    geom_label(aes(x = 4, y = 5), label = "Ouverture ou partage", family = font, vjust = .4, hjust = "right", 
+               fill = "white", label.size = NA) +
+    geom_label(aes(x = 3, y = 4), label = "Planification, PGD", family = font, vjust = .4, hjust = "right", 
+               fill = "white", label.size = NA) +
+    geom_label(aes(x = 2, y = 3), label = "Réutilisation", family = font, vjust = .4, hjust = "right", 
+               fill = "white", label.size = NA) +
+    geom_label(aes(x = 1, y = 2), label = "Analyse, traitement, calcul", family = font, vjust = .4, hjust = "right", 
+               fill = "white", label.size = NA) +
+    geom_label(aes(x = 0, y = 1), label = "Collecte, création, stockage", family = font, vjust = .4, hjust = "right", 
+               fill = "white", label.size = NA) +
+    coord_fixed(clip = 'off') 
+```
+
++ **Positive and negative evolutions**
+
+```{r}
+test <- table |> 
+  mutate(ecart = ecart/100,
+         type_ecart = case_when(ecart >= 0 ~ "positif",
+                                ecart < 0 ~ "negatif",
+                                .default = NA_character_)) |> 
+  select(Structure, Réponses, ecart, type_ecart) |> na.omit() 
+test |> 
+  ggplot(aes(x = Réponses, y = ecart, fill = type_ecart)) +
+    geom_bar(stat="identity", width=.6, size = 2, alpha = .7) +
+    coord_flip() +
+    labs(x = "", y = "Écart en points de pourcentage", 
+         subtitle = "Évolution des réponses entre l'édition 2022 et l'édition 2023",
+         title = stringr::str_wrap("Commençons par la protection de la vie privée. Considérez-vous que votre structure est en conformité avec le RGPD ?", width = 55)) +
+    scale_x_discrete(labels = function(x) stringr::str_wrap(x, width = 40)) + 
+    scale_y_continuous(labels = scales::percent) + # pourcentages
+    scale_fill_manual(values = c("positif" = "#288a28", "negatif" = "#a81008")) +
+    theme_classic() +
+    custom_theme() +
+    theme(legend.position = "none",
+          panel.grid.major.x = ggplot2::element_line(color = "#cbcbcb"),
+          panel.grid.major.y = ggplot2::element_blank(),
+          plot.subtitle = element_markdown()) +
+    geom_label(aes(x = Réponses, y = ecart, label = paste0(ecart*100, "%")), 
+              color = "#333333", size = 4, fill = "white", label.size = NA, 
+              hjust = ifelse(test$ecart >= 0, 0, 1))
+```
+
++ **Cartography**
+
+```{r}
+# Graph
+    # titre
+tag.map.title <- tags$style(HTML("
+  .leaflet-control.map-title { 
+    transform: translate(0%,-170%);
+    left: 7%;
+    text-align: center;
+    padding-left: 10px; 
+    padding-right: 10px; 
+    font-weight: bold;
+    font-size: 22px;
+    color: black;
+  }
+"))
+title <- tags$div(tag.map.title, HTML("Localisation des participants aux projets (hors ZFE)"))
+
+    # carte
+proj_loin |> 
+  leaflet() |>
+  addTiles() |> 
+  addControl(title, position = "topleft", className = "map-title") |> 
+  setView(lng = 3, lat = 47, zoom = 4.8) |> 
+  addCircles(radius = proj_loin$nb_contrib, lng = proj_loin$longitude, lat = proj_loin$latitude, #color = proj_loin$col, 
+             weight = 1, opacity = proj_loin$nb_contrib, fillOpacity = .1, 
+             label = proj_loin$nom_commune,
+             popup = paste0(proj_loin$nom_commune, ", ", format(as.integer(proj_loin$nb_contrib, 0), nsmall = 1, big.mark = "."), 
+                            ifelse(proj_loin$nb_contrib <= 1, " contribution dont :\n", " contributions dont :\n"),
+                           "<br>• ", format(as.integer(proj_loin$questionnaires, 0), nsmall = 1, big.mark = "."), ifelse(proj_loin$questionnaires <= 1, " questionnaire", " questionnaires"),
+                           "<br>• ", format(as.integer(proj_loin$propositions, 0), nsmall = 1, big.mark = "."), ifelse(proj_loin$propositions <= 1, " proposition", " propositions"),
+                           "<br>• ", format(as.integer(proj_loin$commentaires, 0), nsmall = 1, big.mark = "."), ifelse(proj_loin$commentaires <= 1, " commentaire", " commentaires"),
+                           "<br>• ", format(as.integer(proj_loin$votes, 0), nsmall = 1, big.mark = "."), ifelse(proj_loin$votes <= 1, " vote", " votes"))) |> 
+  addProviderTiles(provider = "Esri.WorldGrayCanvas")
+# all providers : http://leaflet-extras.github.io/leaflet-providers/preview/index.html
+```
+
++ **Legend out of graph**
+
+```{r}
+# Légende
+graph_leg <- table_all |> 
+filter(Structure == "Une commune" | Structure == "Un EPCI" | Structure == "Un département" | 
+       Structure == "Une région" | Structure == "Autre") |> 
+mutate(Structure = factor(Structure, levels = c("Autre","Une région","Un département","Un EPCI","Une commune"))) |> 
+ggplot(aes(x = Structure, y = Pourcentage, fill = Réponses,
+           text = paste0(Pourcentage*100, "% de réponses '", Réponses, "'"))) + 
+  geom_bar(position = "fill", color = "white", stat="identity", alpha = .9) +
+  labs(x = "", y = "Pourcentage de réponses", title = "Par type de collectivité") +
+  scale_y_continuous(labels = scales::percent, limits = c(0,1)) +
+  scale_fill_manual(values = c("grey", "#bf0001", "#e1b44d", "#33bbc9", "#323465", "#616165", "#0a0a14")) +
+  facet_wrap(~Edition) +
+  coord_flip() +
+  theme_classic() +
+  custom_theme() +
+  guides(fill = guide_legend(ncol = 1, title = "", reverse = T)) +
+  theme(legend.position = "top",
+            panel.grid.major.x = ggplot2::element_line(color = "#cbcbcb"),
+            panel.grid.major.y = ggplot2::element_blank())
+legend <- get_legend(graph_leg + theme(legend.box.margin = margin(0, 0, 10, 12)))
+
+```
+
+
+
 ## Tables
 
 + `gttable()`
@@ -1146,8 +1344,15 @@ ggplot(df, aes(x, y, height = h, width = w, label = info)) +
 + `DT::datatable()`
 
 ```{r}
+datatable(dtable)
 
+```
 
++ `knitr::kable()`
+
+```{r}
+knitr::kable(stat_indiv, format = "html") |> 
+kableExtra::kable_styling(bootstrap_options = c("striped", "hover"))
 ```
 
 
@@ -1181,7 +1386,6 @@ saveWidget(map, file = "ma_carte.html")
 ```
 
 
-
 ----
 
 # R Markdown
@@ -1192,6 +1396,15 @@ saveWidget(map, file = "ma_carte.html")
 ```{r}
 includes:
     in_header: !expr here::here("inst/rmarkdown/resources/header.html")
+```
+
++ **Logo / image at top of the document**
+
+```{r}
+# Logo BDM haut de page
+htmltools::img(src = "https://nextcloud.datactivist.coop/s/oEqjKtbKBnm5j22/preview", 
+               alt = 'logo', 
+               style = 'position:absolute; top:0; right:0; width:400px') #width pour la taille! (ici positionné en haut à droite)
 ```
 
 + **Output file into 'reports' folder**
@@ -1236,6 +1449,18 @@ showtext_auto()
 # then specify on the CSS the name of the font
 ```
 
++ **TOC**
+
+```{r}
+output:
+    rmarkdown::html_document:
+      toc: true
+      toc_float: true
+      toc_depth: 2
+      number_sections: true
+# {-} après les headers 3 et 4 pour enlever le numérotage automatique
+```
+
 + **Python on Rmd**
 
 ```{r}
@@ -1275,6 +1500,30 @@ trackdown::download_file(file = "scripts/Rapport_final.Rmd", gfile = "Rapport_fi
 ```
 
 
+
+---
+
+# Git
+
++ **Cancel last commit NOT pushed**
+
+```{r}
+git reset HEAD~1
+```
+
++ **Cancel last commit pushed**
+
+```{r}
+git revert HEAD
+```
+
++ **Merge diverging branches**
+
+```{r}
+git config pull.rebase false
+```
+
+
 ---
 
 # Autre
@@ -1301,6 +1550,13 @@ foreach (year = years) %dopar% {
 }
 
 stopImplicitCluster()
+```
+
++ **Commit conflicts Git R**
+
+```{r}
+# annuler le dernier commit : git stash
+# supprimer tous les changements locaux (pull possible ensuite) : git stash push --include-untracked
 ```
 
 + **Icons**
