@@ -71,6 +71,16 @@ unzip("dossier_complet.zip")
 data <- read_delim("dossier_complet.csv", ";", trim_ws = TRUE)
 ```
 
++ **Google sheets**
+
+```{r}
+library(googlesheets4) 
+livre_comptable <- read_sheet("https://docs.google.com/spreadsheets/d/1rdjsLuY3WGDomlFm-61DgQ1qn2bNM_VHo1a0LV-WUD8/edit#gid=38666601")
+# Attention : ne marche que si le tableau est en format GoogleSheet et pas Excel !!
+```
+
+
+
 
 
 ### API
@@ -171,6 +181,10 @@ core_histo <- core_histo |> bind_rows()
 ```
 
 
+
+
+
+
 ## Librairies, noms
 
 + **Multiple libraries**
@@ -220,8 +234,7 @@ data$Date <- format(as.Date(data$Date, format = "%Y-%m-%d %H:%M:%S"),"%d %B %Y")
 + **Dates subtraction**
 
 ```{r}
-data <- data |> mutate(age = round(as.numeric(difftime(Sys.Date(), dateOfBirth, units = "weeks")) / 52.1429, 0), #année
-                       nb_weeks = round(as.numeric(difftime(fin, Sys.Date(), units = "weeks")), 0), #semaine
+data <- data |> mutate(nb_weeks = round(as.numeric(difftime(fin, Sys.Date(), units = "weeks")), 0), #semaine
                        nb_month = round(as.numeric(difftime(fin, Sys.Date(), units = "weeks") /4.34524), 0)) #mois
 ```
 
@@ -403,11 +416,6 @@ data <- data |>
     mutate(groupNbr = cur_group_id())
 ```
 
-+ **Intervals on numeric variable**
-
-```{r}
-data <- data |> mutate(tranche_age = cut(age, c(18,20, seq(30, 90, 5), 98)))
-```
 
 + **Random values**
 
@@ -415,6 +423,30 @@ data <- data |> mutate(tranche_age = cut(age, c(18,20, seq(30, 90, 5), 98)))
 random <- c("groupe 1", "groupe 2", "groupe 3")
 sample(random, size = nrow(data), replace = TRUE, prob = c(9/10,0.06,0.04))
 ```
+
+### Âge
+
++ **Check intersections between intervals**
+
+```{r}
+data |> 
+    mutate(has_intersection = all(sapply(1:(n() - 1), function(i) {
+      all(pmax(min[i], min[(i + 1):n()]) <= pmin(max[i]+3, max[(i + 1):n()]+3)) 
+    })), .by = author_id) #où min est âge_min et max est age_max de la tranche
+```
+
++ **Create age intervals**
+
+```{r}
+data <- data |> mutate(tranche_age = cut(age, c(18,20, seq(30, 90, 5), 98)))
+```
+
++ **Find age from date of birth**
+
+```{r}
+data <- data |> mutate(age = round(as.numeric(difftime(Sys.Date(), dateOfBirth, units = "weeks")) / 52.1429, 0)) #année
+```
+
 
 
 
@@ -433,6 +465,13 @@ library(tools)
 toTitleCase(tolower("MY STRING"))
 toTitleCase("my other string")
 ```
+
++ **Upper first letter of first word**
+
+```{r}
+gsub("^(\\w)(\\w+)", "\\U\\1\\L\\2", "my other string", perl = TRUE)
+```
+
 
 + **Remove specific words/characters**
 
@@ -621,6 +660,8 @@ data |> filter(row_number() %% 2 ==  1) # impair
 ```{r}
 data |> group_by(cat) |> filter(across(where(is.character), ~. != "N/A"))
 ```
+
+
 
 ## Fonctions
 
@@ -1386,6 +1427,8 @@ saveWidget(map, file = "ma_carte.html")
 ```
 
 
+
+
 ----
 
 # R Markdown
@@ -1499,7 +1542,23 @@ trackdown::upload_file(file = "scripts/Rapport_final.Rmd", gfile = "Rapport_fina
 trackdown::download_file(file = "scripts/Rapport_final.Rmd", gfile = "Rapport_final.Rmd")
 ```
 
++ **Embed HTML in Rmd page**
 
+<iframe src="Save_cartos/carte_p17_t1.html" height="600" width="1000" style="border: 0px solid #464646;" allowfullscreen="" allow="autoplay" data-external="1"></iframe>
+
+***Attention bien mettre "self_contained: false" dans le header. Affiche error quand preview de l'HTML ; il faut ouvrir dans un browser pour voir le résultat !!***
+
+*Autre solution :*
+
+```{r}
+knitr::include_url(glue('../figures/tableau_global/tableau_global_{name_salarie}.html'))
+```
+
+***Mettre ça dans <style> en haut du rmd pour enlever la bordure noire.***
+
+iframe {
+  border: none;
+}
 
 ---
 
