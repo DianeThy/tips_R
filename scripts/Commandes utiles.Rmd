@@ -1,7 +1,7 @@
 ---
 title: "Commandes utiles"
 author: "Diane Thierry"
-date: "Màj le `r Sys.Date()`"
+date: "Mis à jour le `r format(as.Date(Sys.Date(), format = '%Y-%m-%d'),'%d %B %Y')`"
 output: 
     html_document:
         theme: paper
@@ -1166,7 +1166,8 @@ iris |>
 
 + **Radar**
 
-```{r eval = T, out.width = '60%', fig.align = 'center'}
+```{r eval = F, out.width = '60%', fig.align = 'center'}
+devtools::install_github("ricardo-bion/ggradar")  #installation impossible
 library(ggradar)
 iris |> 
   select(sepal_length, sepal_length:petal_width) |> 
