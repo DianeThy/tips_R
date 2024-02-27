@@ -2801,8 +2801,14 @@ trackdown::download_file(file = &quot;scripts/Rapport_final.Rmd&quot;, gfile = &
 <ul>
 <li><strong>Embed HTML in Rmd page</strong></li>
 </ul>
-<iframe src="Save_cartos/carte_p17_t1.html" height="600" width="1000" style="border: 0px solid #464646;" allowfullscreen allow="autoplay" data-external="1">
-</iframe>
+<p>Code à mettre en corps de texte pour que ça run :</p>
+<pre class="r"><code># Embed centré, html en ligne (ex: carte ODS)
+&lt;div align=&quot;center&quot;&gt;
+&lt;iframe frameborder=&quot;0&quot; width=&quot;800&quot; height=&quot;600&quot; src=&quot;https://opendata.bordeaux-metropole.fr/map/embed/points_deau_potable_merignac/?&amp;static=false&amp;scrollWheelZoom=false&quot;&gt;&lt;/iframe&gt;
+&lt;/div&gt;
+
+# HTML en local
+&lt;iframe src=&quot;Save_cartos/carte_p17_t1.html&quot; height=&quot;600&quot; width=&quot;1000&quot; style=&quot;border: 0px solid #464646;&quot; allowfullscreen=&quot;&quot; allow=&quot;autoplay&quot; data-external=&quot;1&quot;&gt;&lt;/iframe&gt;</code></pre>
 <p><strong><em>Attention bien mettre “self_contained: false” dans le
 header. Affiche error quand preview de l’HTML ; il faut ouvrir dans un
 browser pour voir le résultat !!</em></strong></p>

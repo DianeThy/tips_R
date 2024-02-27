@@ -1579,7 +1579,17 @@ trackdown::download_file(file = "scripts/Rapport_final.Rmd", gfile = "Rapport_fi
 
 + **Embed HTML in Rmd page**
 
+Code à mettre en corps de texte pour que ça run : 
+
+```{r}
+# Embed centré, html en ligne (ex: carte ODS)
+<div align="center">
+<iframe frameborder="0" width="800" height="600" src="https://opendata.bordeaux-metropole.fr/map/embed/points_deau_potable_merignac/?&static=false&scrollWheelZoom=false"></iframe>
+</div>
+
+# HTML en local
 <iframe src="Save_cartos/carte_p17_t1.html" height="600" width="1000" style="border: 0px solid #464646;" allowfullscreen="" allow="autoplay" data-external="1"></iframe>
+```
 
 ***Attention bien mettre "self_contained: false" dans le header. Affiche error quand preview de l'HTML ; il faut ouvrir dans un browser pour voir le résultat !!***
 
