@@ -3,12 +3,13 @@ title: "Commandes utiles"
 author: "Diane Thierry"
 date: "Mis à jour le `r format(as.Date(Sys.Date(), format = '%Y-%m-%d'),'%d %B %Y')`"
 output: 
-    html_document:
-        theme: paper
-        highlight: textmate
-        toc: yes
-        toc_float: yes
-        number_sections: true
+  html_document:
+      theme: paper
+      highlight: textmate
+      toc: true
+      toc_depth: 3
+      toc_float: true
+      number_sections: true
 ---
 
 ```{r setup, include = FALSE}
@@ -33,6 +34,7 @@ Ce document vise à rassembler les commandes utiles pour programmer en R.
 + **JSON**
 
 ```{r}
+library(jsonlite)
 decp_Lambersart <- fromJSON(txt = "../data/decp/decp_Lambersart.json", flatten = T)
 decp_Lambersart <- as.data.frame(decp_Lambersart$marches) |> 
   mutate(titulaires = map(titulaires, ~ mutate(.x, id = as.character(id)))) |> 
@@ -42,6 +44,8 @@ decp_Lambersart <- as.data.frame(decp_Lambersart$marches) |>
 + **XML**
 
 ```{r}
+library(XML)
+library(httr)
 data_19 <- xmlParse(content(GET("https://marchespublics596280.fr/app.php/api/v1/donnees-essentielles/contrat/xml-extraire-criteres/50286/a:1:%7Bi:0;i:0;%7D/1/2019/false/false/false/false/false/false/false/false/false", user_agent("Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2227.0 Safari/537.36")), "text"), 
                       encoding = "UTF-8")
 xml_df_19 <- xmlToDataFrame(nodes = getNodeSet(data_19, "//marche")) |> mutate(Year = 2019)
@@ -50,6 +54,7 @@ xml_df_19 <- xmlToDataFrame(nodes = getNodeSet(data_19, "//marche")) |> mutate(Y
 + **bibTex**
 
 ```{r}
+library(bib2df)
 hal1 <- read_bibtex("https://api.archives-ouvertes.fr/search/?q=+publicationDateY_i%3A[2018+TO+2020]+AND++(docType_s%3ACOMM)&fq=collCode_s%3AINRIA2&rows=100000&wt=bibtex")
 ```
 
@@ -66,6 +71,7 @@ data <- rbindlist_fread("mon/super/path")
 + **ZIP**
 
 ```{r}
+library(utils)
 download.file("https://www.insee.fr/fr/statistiques/fichier/5359146/dossier_complet.zip", "dossier_complet.zip")
 unzip("dossier_complet.zip")
 data <- read_delim("dossier_complet.csv", ";", trim_ws = TRUE)
@@ -205,14 +211,15 @@ package.check <- lapply(
 + **Clean column names**
 
 ```{r}
-data <- data |> 
-  janitor::clean_names()
+library(janitor)
+data <- data |> clean_names()
 ```
 
 
 + **Clean specific column names**
 
 ```{r}
+library(janitor)
 clean_some_names <- function(dat, idx, ...) {
   names(dat)[idx] <- janitor::make_clean_names(names(dat)[idx], ...)
   dat
@@ -222,7 +229,7 @@ data <- data |>
 ```
 
 
-+ **Rename all columns with suffix except one**
++ **Rename all columns with suffix except two**
 
 ```{r}
 rename_at(vars(-Name, -State), ~ paste0(., '_2017'))
@@ -265,7 +272,7 @@ data <- data |> mutate_at(vars(var_3:var_17), ~round(.,0))
 ```
 
 
-### Valeurs manquantes, NAs
+### NAs
 
 + **Fill NAs with previous values by group**
 
@@ -278,7 +285,7 @@ data <- data |>
 
 
 
-### Remplacement de valeurs
+### Remplacements
 
 + **Replace string**
 
@@ -306,7 +313,7 @@ data <- data |> mutate(col = str_replace_all(col, "[^[:alnum:]]", " "))
 data <- data |> mutate(col = replace_na(col, 0))
 
 # NAs du df entier par 0
-data <- data |> mutate_all(replace_na, replace = 0)
+data <- data |> mutate_all(replace_na, 0)
 
 # NAs par string
 data <- data |> replace(is.na(.), "unknown_by_WOS")
@@ -344,7 +351,9 @@ format(as.integer(1000000, 0), nsmall = 1, big.mark = ".")
 ```
 
 
-### Aplatissement de listes
+### Listes
+
++ **Unlist**
 
 ```{r}
 data <- data |>
@@ -352,8 +361,31 @@ data <- data |>
     group_by(author_id) |> mutate(n = n()) |> select(author_id, n) |> distinct()
 ```
 
++ **Complex unlist when simple pull/pluck is not working**
 
-### Format de variables
+```{r}
+# Exemple de Lyon - données projets
+comm1 <- propositions |> 
+    filter(lengths(comments) != 0) |> 
+    group_by(id_proposition) |> 
+    mutate(nb_comments = nrow(comments[[1]])) |> 
+    select(id_projet, id_proposition, comments, nb_comments) |> 
+    pluck() |> bind_rows()
+comm2 <- comm1 |>
+    pull(comments) |> 
+    pluck() |> bind_rows()
+comm1.1 <- comm1 |> ungroup() |> 
+    mutate(index = row_number()) |> 
+    group_by(id_proposition) |> 
+    slice(rep(1:n(), each = nb_comments)) |> 
+    arrange(index)
+proj_comm_date <- cbind(comm1.1, comm2) |> ungroup() |> 
+    select(id_projet, author_id, publishedAt) |> 
+    rename(date = publishedAt) |> mutate(type = "commentaires")
+```
+
+
+### Formats
 
 + **Pivot longer**
 

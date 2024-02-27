@@ -1535,20 +1535,24 @@ R.</p>
 <ul>
 <li><strong>JSON</strong></li>
 </ul>
-<pre class="r"><code>decp_Lambersart &lt;- fromJSON(txt = &quot;../data/decp/decp_Lambersart.json&quot;, flatten = T)
+<pre class="r"><code>library(jsonlite)
+decp_Lambersart &lt;- fromJSON(txt = &quot;../data/decp/decp_Lambersart.json&quot;, flatten = T)
 decp_Lambersart &lt;- as.data.frame(decp_Lambersart$marches) |&gt; 
   mutate(titulaires = map(titulaires, ~ mutate(.x, id = as.character(id)))) |&gt; 
   unnest(cols = c(titulaires))</code></pre>
 <ul>
 <li><strong>XML</strong></li>
 </ul>
-<pre class="r"><code>data_19 &lt;- xmlParse(content(GET(&quot;https://marchespublics596280.fr/app.php/api/v1/donnees-essentielles/contrat/xml-extraire-criteres/50286/a:1:%7Bi:0;i:0;%7D/1/2019/false/false/false/false/false/false/false/false/false&quot;, user_agent(&quot;Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2227.0 Safari/537.36&quot;)), &quot;text&quot;), 
+<pre class="r"><code>library(XML)
+library(httr)
+data_19 &lt;- xmlParse(content(GET(&quot;https://marchespublics596280.fr/app.php/api/v1/donnees-essentielles/contrat/xml-extraire-criteres/50286/a:1:%7Bi:0;i:0;%7D/1/2019/false/false/false/false/false/false/false/false/false&quot;, user_agent(&quot;Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2227.0 Safari/537.36&quot;)), &quot;text&quot;), 
                       encoding = &quot;UTF-8&quot;)
 xml_df_19 &lt;- xmlToDataFrame(nodes = getNodeSet(data_19, &quot;//marche&quot;)) |&gt; mutate(Year = 2019)</code></pre>
 <ul>
 <li><strong>bibTex</strong></li>
 </ul>
-<pre class="r"><code>hal1 &lt;- read_bibtex(&quot;https://api.archives-ouvertes.fr/search/?q=+publicationDateY_i%3A[2018+TO+2020]+AND++(docType_s%3ACOMM)&amp;fq=collCode_s%3AINRIA2&amp;rows=100000&amp;wt=bibtex&quot;)</code></pre>
+<pre class="r"><code>library(bib2df)
+hal1 &lt;- read_bibtex(&quot;https://api.archives-ouvertes.fr/search/?q=+publicationDateY_i%3A[2018+TO+2020]+AND++(docType_s%3ACOMM)&amp;fq=collCode_s%3AINRIA2&amp;rows=100000&amp;wt=bibtex&quot;)</code></pre>
 <ul>
 <li><strong>Multiple CSV into folder</strong></li>
 </ul>
@@ -1560,7 +1564,8 @@ data &lt;- rbindlist_fread(&quot;mon/super/path&quot;)</code></pre>
 <ul>
 <li><strong>ZIP</strong></li>
 </ul>
-<pre class="r"><code>download.file(&quot;https://www.insee.fr/fr/statistiques/fichier/5359146/dossier_complet.zip&quot;, &quot;dossier_complet.zip&quot;)
+<pre class="r"><code>library(utils)
+download.file(&quot;https://www.insee.fr/fr/statistiques/fichier/5359146/dossier_complet.zip&quot;, &quot;dossier_complet.zip&quot;)
 unzip(&quot;dossier_complet.zip&quot;)
 data &lt;- read_delim(&quot;dossier_complet.csv&quot;, &quot;;&quot;, trim_ws = TRUE)</code></pre>
 <ul>
@@ -1679,19 +1684,20 @@ package.check &lt;- lapply(
 <ul>
 <li><strong>Clean column names</strong></li>
 </ul>
-<pre class="r"><code>data &lt;- data |&gt; 
-  janitor::clean_names()</code></pre>
+<pre class="r"><code>library(janitor)
+data &lt;- data |&gt; clean_names()</code></pre>
 <ul>
 <li><strong>Clean specific column names</strong></li>
 </ul>
-<pre class="r"><code>clean_some_names &lt;- function(dat, idx, ...) {
+<pre class="r"><code>library(janitor)
+clean_some_names &lt;- function(dat, idx, ...) {
   names(dat)[idx] &lt;- janitor::make_clean_names(names(dat)[idx], ...)
   dat
 }
 data &lt;- data |&gt; 
     clean_some_names(14:18)</code></pre>
 <ul>
-<li><strong>Rename all columns with suffix except one</strong></li>
+<li><strong>Rename all columns with suffix except two</strong></li>
 </ul>
 <pre class="r"><code>rename_at(vars(-Name, -State), ~ paste0(., &#39;_2017&#39;))</code></pre>
 </div>
@@ -1724,9 +1730,8 @@ data &lt;- data |&gt; mutate(date_fin = as.mondate(date_debut) + duree) #duree e
 </ul>
 <pre class="r"><code>data &lt;- data |&gt; mutate_at(vars(var_3:var_17), ~round(.,0))</code></pre>
 </div>
-<div id="valeurs-manquantes-nas" class="section level3" number="2.1.2">
-<h3><span class="header-section-number">2.1.2</span> Valeurs manquantes,
-NAs</h3>
+<div id="nas" class="section level3" number="2.1.2">
+<h3><span class="header-section-number">2.1.2</span> NAs</h3>
 <ul>
 <li><strong>Fill NAs with previous values by group</strong></li>
 </ul>
@@ -1735,9 +1740,8 @@ NAs</h3>
     fill(everything(), .direction = &quot;downup&quot;) |&gt; 
     ungroup()</code></pre>
 </div>
-<div id="remplacement-de-valeurs" class="section level3" number="2.1.3">
-<h3><span class="header-section-number">2.1.3</span> Remplacement de
-valeurs</h3>
+<div id="remplacements" class="section level3" number="2.1.3">
+<h3><span class="header-section-number">2.1.3</span> Remplacements</h3>
 <ul>
 <li><strong>Replace string</strong></li>
 </ul>
@@ -1758,7 +1762,7 @@ data &lt;- data |&gt; mutate(col = str_replace_all(col, &quot;[^[:alnum:]]&quot;
 data &lt;- data |&gt; mutate(col = replace_na(col, 0))
 
 # NAs du df entier par 0
-data &lt;- data |&gt; mutate_all(replace_na, replace = 0)
+data &lt;- data |&gt; mutate_all(replace_na, 0)
 
 # NAs par string
 data &lt;- data |&gt; replace(is.na(.), &quot;unknown_by_WOS&quot;)
@@ -1789,16 +1793,39 @@ format(round(100000000 / 1e6, 1), trim = TRUE)
 # Centaines et milliers séparés des virgules
 format(as.integer(1000000, 0), nsmall = 1, big.mark = &quot;.&quot;)</code></pre>
 </div>
-<div id="aplatissement-de-listes" class="section level3" number="2.1.4">
-<h3><span class="header-section-number">2.1.4</span> Aplatissement de
-listes</h3>
+<div id="listes" class="section level3" number="2.1.4">
+<h3><span class="header-section-number">2.1.4</span> Listes</h3>
+<ul>
+<li><strong>Unlist</strong></li>
+</ul>
 <pre class="r"><code>data &lt;- data |&gt;
     pull(column) |&gt; pluck() |&gt; bind_rows() |&gt; 
     group_by(author_id) |&gt; mutate(n = n()) |&gt; select(author_id, n) |&gt; distinct()</code></pre>
+<ul>
+<li><strong>Complex unlist when simple pull/pluck is not
+working</strong></li>
+</ul>
+<pre class="r"><code># Exemple de Lyon - données projets
+comm1 &lt;- propositions |&gt; 
+    filter(lengths(comments) != 0) |&gt; 
+    group_by(id_proposition) |&gt; 
+    mutate(nb_comments = nrow(comments[[1]])) |&gt; 
+    select(id_projet, id_proposition, comments, nb_comments) |&gt; 
+    pluck() |&gt; bind_rows()
+comm2 &lt;- comm1 |&gt;
+    pull(comments) |&gt; 
+    pluck() |&gt; bind_rows()
+comm1.1 &lt;- comm1 |&gt; ungroup() |&gt; 
+    mutate(index = row_number()) |&gt; 
+    group_by(id_proposition) |&gt; 
+    slice(rep(1:n(), each = nb_comments)) |&gt; 
+    arrange(index)
+proj_comm_date &lt;- cbind(comm1.1, comm2) |&gt; ungroup() |&gt; 
+    select(id_projet, author_id, publishedAt) |&gt; 
+    rename(date = publishedAt) |&gt; mutate(type = &quot;commentaires&quot;)</code></pre>
 </div>
-<div id="format-de-variables" class="section level3" number="2.1.5">
-<h3><span class="header-section-number">2.1.5</span> Format de
-variables</h3>
+<div id="formats" class="section level3" number="2.1.5">
+<h3><span class="header-section-number">2.1.5</span> Formats</h3>
 <ul>
 <li><strong>Pivot longer</strong></li>
 </ul>
