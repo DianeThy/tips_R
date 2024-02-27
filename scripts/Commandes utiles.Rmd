@@ -209,6 +209,19 @@ data <- data |>
   janitor::clean_names()
 ```
 
+
++ **Clean specific column names**
+
+```{r}
+clean_some_names <- function(dat, idx, ...) {
+  names(dat)[idx] <- janitor::make_clean_names(names(dat)[idx], ...)
+  dat
+}
+data <- data |> 
+    clean_some_names(14:18)
+```
+
+
 + **Rename all columns with suffix except one**
 
 ```{r}
@@ -523,13 +536,13 @@ data <- data |> mutate(annee = str_extract(`En quelle année ?`, "(1|2)\\d{3}"))
 + **Extract n first characters**
 
 ```{r}
-data <- data |> mutate(sub_string = substr(data$string, 1, n))
+data <- data |> mutate(sub_string = substr(string, 1, n))
 ```
 
 + **Extract n last characters**
 
 ```{r}
-data <- data |> mutate(sub_string = substr(data$string, nchar(data$string)-n+1, nchar(data$string)))
+data <- data |> mutate(sub_string = substr(string, nchar(string)-n+1, nchar(string)))
 ```
 
 + **Add digit identifiant**
@@ -1373,6 +1386,27 @@ legend <- get_legend(graph_leg + theme(legend.box.margin = margin(0, 0, 10, 12))
 ```
 
 
++ **Dual axis on ggplot**
+
+```{r}
+table |> 
+    mutate(timestamp = as.Date(as.character(paste0(timestamp, "-01")))) |> 
+  ggplot(aes(x = timestamp
+             #text = paste(n_cumule, "inscrits en", format(timestamp, "%b %Y"))
+             )) +
+  geom_line( aes(y=n_cumule), size=1, alpha=0.9, color = "#3366CC") + 
+  geom_line( aes(y=n_cumule_contrib/3.785737), size=1, alpha=0.9, color = "#CC0000") +
+  labs(x = "Temps", y = "Nombre d'inscrits", 
+       title = stringr::str_wrap("Évolution du nombre d'inscrits et du nombre de contributions cumulés sur la plateforme depuis son lancement", width = 40)) +
+  scale_y_continuous(name = "Nombre total d'inscrits",
+    sec.axis = sec_axis(~ . * 3.785737, name = "Nombre total de contributions")) +  #scale_x_date(date_labels = "%Y %b") +
+  theme_classic() +
+  custom_theme() +
+  theme(legend.position = "right",
+        axis.title.y = element_text(color = "#3366CC"),
+        axis.title.y.right = element_text(color = "#CC0000"))
+```
+
 
 ## Tables
 
@@ -1560,6 +1594,14 @@ iframe {
   border: none;
 }
 
+
++ **Autmatic tab for elements of a list**
+
+```{r}
+#voir script ici : https://github.com/datactivist/plans_de_charge/blob/main/scripts/tableau_de_bord.Rmd
+# ATTENTION : ne pas mettre de caractères spéciaux (&.) dans les noms data-navmenu=""
+```
+
 ---
 
 # Git
@@ -1582,6 +1624,11 @@ git revert HEAD
 git config pull.rebase false
 ```
 
++ **Stash local changes for specific file**
+
+```{r}
+git stash push scripts/tableau_de_bord.html
+```
 
 ---
 
