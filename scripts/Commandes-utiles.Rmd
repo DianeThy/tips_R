@@ -1,15 +1,13 @@
 ---
 title: "Commandes utiles"
-author: "Diane Thierry"
 date: "Mis à jour le `r format(as.Date(Sys.Date(), format = '%Y-%m-%d'),'%d %B %Y')`"
 output: 
   html_document:
-      theme: paper
-      highlight: textmate
-      toc: true
-      toc_depth: 3
-      toc_float: true
-      number_sections: true
+    highlight: textmate
+    toc: yes
+    toc_float: yes
+    includes:
+        after_body: footer.html
 ---
 
 ```{r setup, include = FALSE}
@@ -21,11 +19,11 @@ knitr::opts_chunk$set(echo = TRUE,
 ```
 
 
-Ce document vise à rassembler les commandes utiles pour programmer en R.
+Ce document vise à rassembler les commandes utiles pour **programmer en R**.
 
 ---
 
-# Départ d'analyse
+# `r fontawesome::fa("circle-play", fill = "#0000CC", prefer_type = "solid")` <FONT COLOR="#0000CC">Départ d'analyse</FONT>
 
 
 ## Import données
@@ -35,7 +33,7 @@ Ce document vise à rassembler les commandes utiles pour programmer en R.
 
 ```{r}
 library(jsonlite)
-decp_Lambersart <- fromJSON(txt = "../data/decp/decp_Lambersart.json", flatten = T)
+decp_Lambersart <- fromJSON(txt = "../data/decp/decp_acheteur.json", flatten = T)
 decp_Lambersart <- as.data.frame(decp_Lambersart$marches) |> 
   mutate(titulaires = map(titulaires, ~ mutate(.x, id = as.character(id)))) |> 
   unnest(cols = c(titulaires))
@@ -51,16 +49,17 @@ data_19 <- xmlParse(content(GET("https://marchespublics596280.fr/app.php/api/v1/
 xml_df_19 <- xmlToDataFrame(nodes = getNodeSet(data_19, "//marche")) |> mutate(Year = 2019)
 ```
 
-+ **bibTex**
++ **SAS**
 
 ```{r}
-library(bib2df)
-hal1 <- read_bibtex("https://api.archives-ouvertes.fr/search/?q=+publicationDateY_i%3A[2018+TO+2020]+AND++(docType_s%3ACOMM)&fq=collCode_s%3AINRIA2&rows=100000&wt=bibtex")
+library(haven)
+data <- read_sas("../data/mon_fichier.sas7bdat")
 ```
 
-+ **Multiple CSV into folder**
++ **Multiple CSV into folder (import and rbind)**
 
 ```{r}
+library(data.table)
 rbindlist_fread <- function(path, pattern = "*.csv") {
     files = list.files(path, pattern, full.names = TRUE)
     data.table::rbindlist(lapply(files, function(x) fread(x)))
@@ -72,7 +71,7 @@ data <- rbindlist_fread("mon/super/path")
 
 ```{r}
 library(utils)
-download.file("https://www.insee.fr/fr/statistiques/fichier/5359146/dossier_complet.zip", "dossier_complet.zip")
+download.file("lien/vers/zip.zip", "dossier_complet.zip")
 unzip("dossier_complet.zip")
 data <- read_delim("dossier_complet.csv", ";", trim_ws = TRUE)
 ```
@@ -81,12 +80,12 @@ data <- read_delim("dossier_complet.csv", ";", trim_ws = TRUE)
 
 ```{r}
 library(googlesheets4) 
-livre_comptable <- read_sheet("https://docs.google.com/spreadsheets/d/1rdjsLuY3WGDomlFm-61DgQ1qn2bNM_VHo1a0LV-WUD8/edit#gid=38666601")
-# Attention : ne marche que si le tableau est en format GoogleSheet et pas Excel !!
+data <- read_sheet("lien/vers/le/google/sheets")
+# Attention : ne marche que si le tableau est en format GoogleSheet et pas Excel déposé sur Drive !!
 ```
 
 
-
+<br>
 
 
 ### API
@@ -124,10 +123,11 @@ parse_api_open_alex <- function(start, end){
 }
 
 
-### On applique la fonction par 50.000 DOIs (~1h15 pour 10.000 appels)
-parse_api_open_alex(1,50000)
+### On applique la fonction pour 50 DOIs
+parse_api_open_alex(1,50)
 ```
 
+<br>
 
 ### Web scraping
 
@@ -135,7 +135,7 @@ parse_api_open_alex(1,50000)
 
 ```{r}
 library(rvest)
-content <- read_html("https://www.saint-marcellin.fr/services/vie-commerciale/commerces")
+content <- read_html("url")
 body_table <- content |> html_nodes('body')  |>
                     html_nodes('table') |>
                     html_table(dec = ",") 
@@ -146,6 +146,7 @@ data <- body_table[[1]]
 
 ```{r}
 library(rvest)
+library(tidyverse)
 data <- purrr::map(
         .x = (as.data.frame(rep(1:5, each = 1)) |> rename(page = `rep(1:5, each = 1)`))$page,
         .y = data.frame(matrix(ncol = 1, nrow = 1)),
@@ -158,11 +159,12 @@ data <- bind_rows(data)
 + **Difficult scraping (data in the body text in multiple pages)**
 
 ```{r}
+# Code valable en janvier 2023, site a évolué maintenant
 library(htm2txt)
 core_millesime <- purrr::map(
         .x = (as.data.frame(rep(1:10, each = 1)) |> rename(page = `rep(1:10, each = 1)`))$page,
         .y = data.frame(matrix(ncol = 1, nrow = 1)),
-        possibly(.f = ~ as.data.frame(gettxt(paste0('http://portal.core.edu.au/conf-ranks/', .x))) |> #import page par page
+        possibly(.f = ~ as.data.frame(gettxt(paste0('http://portal.core.edu.au/conf-ranks/', .x, '/'))) |> #import page par page
     rename(text = 1) |> 
     mutate(text = strsplit(as.character(text), "\n")) |> unnest(text) |> #split les éléments séparés par des "\n"
     filter(row_number() ==  10 | #nom de conférence
@@ -188,7 +190,7 @@ core_histo <- core_histo |> bind_rows()
 
 
 
-
+<br>
 
 
 ## Librairies, noms
@@ -232,13 +234,24 @@ data <- data |>
 + **Rename all columns with suffix except two**
 
 ```{r}
-rename_at(vars(-Name, -State), ~ paste0(., '_2017'))
+data <- data |> rename_at(vars(-Name, -State), ~ paste0(., '_2017'))
+```
+
++ **Order alphabetically columns**
+
+```{r}
+data <- data |> select(indicateurs, order(colnames(data)))
 ```
 
 
+<br>
 
 
-# Manipulations de variables 
+
+# `r fontawesome::fa("table", fill = "#0000CC")` <FONT COLOR="#0000CC">Manipulations de variables</FONT>
+
+<br>
+
 
 ## Modification de variables
 
@@ -247,7 +260,7 @@ rename_at(vars(-Name, -State), ~ paste0(., '_2017'))
 + **Change date format**
 
 ```{r}
-data$Date <- format(as.Date(data$Date, format = "%Y-%m-%d %H:%M:%S"),"%d %B %Y") #30 mai 2023
+data <- mutate(date = format(as.Date(Date, format = "%Y-%m-%d %H:%M:%S"),"%d %B %Y")) #30 mai 2023
 # autres formats : https://www.r-bloggers.com/2013/08/date-formats-in-r/
 ```
 
@@ -272,6 +285,9 @@ data <- data |> mutate_at(vars(var_3:var_17), ~round(.,0))
 ```
 
 
+<br>
+
+
 ### NAs
 
 + **Fill NAs with previous values by group**
@@ -281,28 +297,6 @@ data <- data |>
     group_by(`Référence commande`) |> 
     fill(everything(), .direction = "downup") |> 
     ungroup()
-```
-
-
-
-### Remplacements
-
-+ **Replace string**
-
-```{r}
-# Valeurs d'une colonne
-data$column <- str_replace_all(data$column, c("pattern1 | pattern2" = "replacement"))
-
-# Valeurs du df entier
-data <- data |> mutate_all(function(x) gsub("pattern1 | pattern2", "replacement", x))
-```
-
-
-+ **Remove special characters (all)**
-
-```{r}
-# Supprimer les caractères spéciaux ex : ? ' !
-data <- data |> mutate(col = str_replace_all(col, "[^[:alnum:]]", " "))
 ```
 
 
@@ -316,7 +310,7 @@ data <- data |> mutate(col = replace_na(col, 0))
 data <- data |> mutate_all(replace_na, 0)
 
 # NAs par string
-data <- data |> replace(is.na(.), "unknown_by_WOS")
+data <- data |> replace(is.na(.), "unknown")
 
 # NAs par valeurs autre colonne
 data <- data |> mutate(col_NA = coalesce(col_NA, col_replace))
@@ -340,15 +334,50 @@ data <- data |> mutate(col = replace(col, which(col<0), NA))
 data <- data |> mutate(across(starts_with("Choix_"), ~ na_if(.x, "Pas de préférence")))
 ```
 
+
+<br>
+
+
+### Remplacements
+
++ **Replace string**
+
+```{r}
+# Valeurs d'une colonne
+data <- data |> mutate(col = str_replace_all(col, c("pattern1 | pattern2" = "replacement")))
+
+# Valeurs du df entier
+data <- data |> mutate_all(function(x) gsub("pattern1 | pattern2", "replacement", x))
+```
+
+
++ **Remove special characters (all)**
+
+```{r}
+# Supprimer les caractères spéciaux ex : ? ' !
+data <- data |> mutate(col = str_replace_all(col, "[^[:alnum:]]", " "))
+```
+
+
 + **Shaping numeric variables**
 
 ```{r}
 # Nombres arrondis au million
 format(round(100000000 / 1e6, 1), trim = TRUE)
 
-# Centaines et milliers séparés des virgules
+# Centaines et milliers séparés des virgules [comma]
 format(as.integer(1000000, 0), nsmall = 1, big.mark = ".")
 ```
+
+
++ **Replace character of multiple columns**
+
+```{r}
+data |> mutate_at(vars(January:December), ~str_replace(., ",", "."))
+```
+
+
+<br>
 
 
 ### Listes
@@ -364,25 +393,28 @@ data <- data |>
 + **Complex unlist when simple pull/pluck is not working**
 
 ```{r}
-# Exemple de Lyon - données projets
-comm1 <- propositions |> 
+# Exemple
+comm1 <- data |> 
     filter(lengths(comments) != 0) |> 
-    group_by(id_proposition) |> 
+    group_by(id) |> 
     mutate(nb_comments = nrow(comments[[1]])) |> 
-    select(id_projet, id_proposition, comments, nb_comments) |> 
+    select(id2, id, comments, nb_comments) |> 
     pluck() |> bind_rows()
 comm2 <- comm1 |>
     pull(comments) |> 
     pluck() |> bind_rows()
 comm1.1 <- comm1 |> ungroup() |> 
     mutate(index = row_number()) |> 
-    group_by(id_proposition) |> 
+    group_by(id) |> 
     slice(rep(1:n(), each = nb_comments)) |> 
     arrange(index)
 proj_comm_date <- cbind(comm1.1, comm2) |> ungroup() |> 
-    select(id_projet, author_id, publishedAt) |> 
+    select(id2, author_id, publishedAt) |> 
     rename(date = publishedAt) |> mutate(type = "commentaires")
 ```
+
+
+<br>
 
 
 ### Formats
@@ -390,10 +422,10 @@ proj_comm_date <- cbind(comm1.1, comm2) |> ungroup() |>
 + **Pivot longer**
 
 ```{r}
-m3 <- Eau_groupe5 |> select(c(BATIMENTS:TYPE_DE_BATIMENTS, starts_with("m3"))) |> 
+m3 <- data |> select(c(BATIMENTS:TYPE_DE_BATIMENTS, starts_with("m3"))) |> 
     mutate_all(as.character) |> 
     pivot_longer(cols = -c(BATIMENTS:TYPE_DE_BATIMENTS), names_to = "Annee", values_to = "m3", names_prefix = "m3_")
-montant <- Eau_groupe5 |> select(c(BATIMENTS:TYPE_DE_BATIMENTS, starts_with("montant"))) |> 
+montant <- data |> select(c(BATIMENTS:TYPE_DE_BATIMENTS, starts_with("montant"))) |> 
     mutate_all(as.character) |> 
     pivot_longer(cols = -c(BATIMENTS:TYPE_DE_BATIMENTS), names_to = "Annee", values_to = "montant", names_prefix = "montant_")
 final <- cbind(m3, montant |> select(montant))
@@ -415,6 +447,9 @@ unnested_bso <- unnested_bso |> mutate(journal_issns = strsplit(as.character(jou
 unnested_bso <- unnested_bso |> mutate(journal_issns = paste0(unique(na.omit(journal_issns)), collapse = ","))
 ```
 
+
+
+<br>
 
 
 
@@ -445,6 +480,9 @@ data |> rowwise() |> mutate(sum_multiple = sum(c_across(var_3:var_17)))
 data |> group_by(Structure) |> mutate(ecart = Pourcentage - lag(Pourcentage))
 ```
 
+<br>
+
+
 ### Valeurs aléatoires, indices, `rep()`, `seq()`
 
 + **Index rep**
@@ -469,12 +507,15 @@ random <- c("groupe 1", "groupe 2", "groupe 3")
 sample(random, size = nrow(data), replace = TRUE, prob = c(9/10,0.06,0.04))
 ```
 
+<br>
+
+
 ### Âge
 
 + **Check intersections between intervals**
 
 ```{r}
-data |> 
+data <- data |> 
     mutate(has_intersection = all(sapply(1:(n() - 1), function(i) {
       all(pmax(min[i], min[(i + 1):n()]) <= pmin(max[i]+3, max[(i + 1):n()]+3)) 
     })), .by = author_id) #où min est âge_min et max est age_max de la tranche
@@ -492,6 +533,8 @@ data <- data |> mutate(tranche_age = cut(age, c(18,20, seq(30, 90, 5), 98)))
 data <- data |> mutate(age = round(as.numeric(difftime(Sys.Date(), dateOfBirth, units = "weeks")) / 52.1429, 0)) #année
 ```
 
+
+<br>
 
 
 
@@ -598,6 +641,9 @@ nchar(string) ==  1
 
 
 
+<br>
+
+
 
 
 ### Regular expressions (regex)
@@ -678,6 +724,9 @@ sapply(str_extract_all("+3214FSEtest!! 1", "[\\d+]+"), function(x) paste(x,colla
 
 
 
+<br>
+
+
 ## Filtres
 
 + **Remove values containing string**
@@ -706,6 +755,16 @@ data |> filter(row_number() %% 2 ==  1) # impair
 data |> group_by(cat) |> filter(across(where(is.character), ~. != "N/A"))
 ```
 
++ **At least 2 values by group**
+
+```{r}
+data |> 
+    filter(any(projet %in% c("proj1234", "proj4321")), 
+           .by = id)
+```
+
+
+<br>
 
 
 ## Fonctions
@@ -726,7 +785,7 @@ rm(ls = inter_bv, ratio, area_commune, area_2017)
 + **Possibly function treatment**
 
 ```{r}
-tryCatch(heures_prevues(salarie), error = function(e) NULL)
+tryCatch(ma_fonction(data), error = function(e) NULL)
 ```
 
 + **Use function saved in other directory**
@@ -762,6 +821,12 @@ table_recap_stat <- rbind(lapply(ls(pattern="^all_stat_"), function(x) get(x))) 
     bind_rows()
 ```
 
++ **"Error in `auto_copy()`: ! `x` and `y` must share the same src"**
+
+Dans une fonction créée, lorsqu'une base de données est appelée sans être mise comme argument attendu, il faut l'ajouter comme argument de fonction. 
+
+
+<br>
 
 
 ## Autre
@@ -769,7 +834,7 @@ table_recap_stat <- rbind(lapply(ls(pattern="^all_stat_"), function(x) get(x))) 
 + **Redundancy test**
 
 ```{r}
-identical(data$doi, data$id)
+identical(data$id1, data$id2)
 ```
 
 + **Increase total system memory R session**
@@ -779,7 +844,15 @@ library(unix) #pour linux
 rlimit_as(1e20)  #increases to ~12GB
 ```
 
-# Manipulations de dataframes
+
+<br>
+
+
+
+# `r fontawesome::fa("database", fill = "#0000CC")` <FONT COLOR="#0000CC">Manipulations de dataframes</FONT>
+
+<br>
+
 
 + **Fuzzy join**
 
@@ -813,9 +886,15 @@ anti_join(df1, df2)
 semi_join(df1, df2)
 ```
 
----
 
-# Analyse
+<br>
+
+
+
+# `r fontawesome::fa("chart-line", fill = "#0000CC")` <FONT COLOR="#0000CC">Analyse</FONT>
+
+<br>
+
 
 ## Statistiques
 
@@ -826,9 +905,9 @@ semi_join(df1, df2)
 data |> count(is.na(col_name))
 
 # Toute les colonnes
-nb_NA <- as.data.frame(apply(is.na(bso_data), 2, sum)) |> 
-                       rename(`nombre de NA` = `apply(is.na(bso_data), 2, sum)`) |>
-                       mutate(pourcentage = `nombre de NA`/nrow(bso_data)*100) |> 
+nb_NA <- as.data.frame(apply(is.na(data), 2, sum)) |> 
+                       rename(`nombre de NA` = `apply(is.na(data), 2, sum)`) |>
+                       mutate(pourcentage = `nombre de NA`/nrow(data)*100) |> 
                        mutate(pourcentage = round(pourcentage, 2)) |> 
                        arrange(desc(pourcentage))
 ```
@@ -846,7 +925,7 @@ table <- data |>
 ```{r}
 data <- as.data.frame(table(data$column))  #R base
 data <- data |> group_by(group) |> count(column)   #dplyr
-data <- data |> group_by(group, column) |> summarise(n = n()) #dplyr
+data <- data |> summarise(n = n(), .by = group) #dplyr
 ```
 
 + **Sum in pipe for specific rows**
@@ -855,6 +934,8 @@ data <- data |> group_by(group, column) |> summarise(n = n()) #dplyr
 data |> mutate(new_cat = sum(n[Catégorie2 == "Total"])) #[]
 ```
 
+
+<br>
 
 ## Visualisations
 
@@ -874,9 +955,11 @@ mutate(colonne = fct_reorder(colonne, n))
 library(gridExtra)
 grid.arrange(g1,g2,g3, ncol = 3, nrow = 1, 
              top = grid::textGrob("Titre", gp = grid::gpar(fontsize = 15, font = 2)))
+
 # Aligner les boxes
 library(cowplot)
 plot_grid(p3.1, p3.2, p3.3, p3.4, p3.5, align = 'vh')
+
 # Afficher plusieurs ggplotlys
 library(plotly)
 subplot(plotly_positif, plotly_negatif, nrows = 1)
@@ -906,11 +989,11 @@ girafe(print(graph), width_svg = 15, height_svg = 12)
 ```{r}
 data |> 
   ggplot(aes(y = n)) +
-  geom_col(aes(x = cycle, fill = rowname, alpha = cycle != "Planification, PGD"), color = "white", position = "stack", width = 0.7) +
+  geom_col(aes(x = cycle, fill = rowname, alpha = cycle != "Catégorie"), color = "white", position = "stack", width = 0.7) +
   scale_alpha_manual(values=c(1, .4))
 ```
 
-+ **Custom theme() BBC**
++ **Custom_theme() BBC**
 
 ```{r}
 font <- "Helvetica"
@@ -969,6 +1052,8 @@ custom_theme_largeG <- function (){
 theme(panel.grid.major.x = ggplot2::element_line(color = "#cbcbcb"),
       panel.grid.major.y = ggplot2::element_blank())
 ```
+
+<br>
 
 ### Par élément
 
@@ -1079,8 +1164,7 @@ scale_fill_manual(values = c("#c898ae", "#da4729", "#f38337", "#74a466", "#fecf5
 ```
 
 
-
-
+<br>
 
 ### Graphiques
 
@@ -1144,6 +1228,22 @@ iris |>
       theme_classic() +
       theme(plot.title = element_text(face = "bold")) +
       facet_wrap(variable ~ .)
+```
+
++ **Histogram with normal distribution**
+
+```{r}
+ggplot(data = table_femmes) + 
+  geom_histogram(mapping = aes(x = percent, y=..density..), fill = "#fd710f", color = "white", alpha = .7) +
+  stat_function(fun = dnorm, args = list(mean = mean(table_femmes$percent), sd = sd(table_femmes$percent)), 
+                size = 1, alpha = .8, aes(col = "Distribution normale")) +
+  scale_colour_manual("", values = c("#cb1d27")) +
+  labs(title = "Distribution de la part des femmes dans les cohortes", x = "Pourcentage de femmes", y = "Densité") +
+  theme_classic() +
+  scale_x_continuous(labels = scales::percent, limits = c(0,1)) +
+  geom_vline(xintercept = .5, linetype = 2, col = "#666666", linewidth = .7) +
+  custom_theme() +
+  theme(plot.title = ggplot2::element_text(size = 18))
 ```
 
 + **Pyramid**
@@ -1441,19 +1541,29 @@ table |>
 ```
 
 
+<br>
+
 ## Tables
 
 + `gttable()`
 
 ```{r}
-
+data |> 
+  gt() |>
+  gt_theme_nytimes() |> 
+  tab_header(title = "Mon titre") |>
+  tab_style(style = list(cell_text(weight = "bold")), #en gras
+    locations = cells_body(columns = ma_col)) |> 
+  cols_align(align = "center", columns = everything()) |> 
+  cols_align(align = "left", columns = c(col1, col2)) |> 
+  gt_plt_bar_pct(`% temps`, scaled = TRUE, labels=TRUE, decimals = 0, 
+           font_size = "14px", fill = "#173541", height = 20)
 ```
 
 + `DT::datatable()`
 
 ```{r}
 datatable(dtable)
-
 ```
 
 + `knitr::kable()`
@@ -1465,9 +1575,11 @@ kableExtra::kable_styling(bootstrap_options = c("striped", "hover"))
 
 
 
----
+<br>
 
-# Fin d'analyse
+# `r fontawesome::fa("circle-stop", fill = "#0000CC", prefer_type = "solid")` <FONT COLOR="#0000CC">Fin d'analyse</FONT>
+
+<br>
 
 + **Export CSV**
 
@@ -1486,7 +1598,7 @@ saving_plot <- function(graph, name, width, height) {
 saving_plot(graph, "histogram", 9, 5)
 ```
 
-+ **Export leaflet map**
++ **Export html objects (leaflet map, plotly)**
 
 ```{r}
 library(htmlwidgets)
@@ -1496,10 +1608,11 @@ saveWidget(map, file = "ma_carte.html")
 
 
 
-----
+<br>
 
-# R Markdown
+# `r fontawesome::fa("markdown", fill = "#0000CC")` <FONT COLOR="#0000CC">R Markdown</FONT>
 
+<br>
 
 + **Footer, css, header files in other folder**
 
@@ -1511,8 +1624,8 @@ includes:
 + **Logo / image at top of the document**
 
 ```{r}
-# Logo BDM haut de page
-htmltools::img(src = "https://nextcloud.datactivist.coop/s/oEqjKtbKBnm5j22/preview", 
+# Logo haut de page
+htmltools::img(src = "lien/vers/mon/image", 
                alt = 'logo', 
                style = 'position:absolute; top:0; right:0; width:400px') #width pour la taille! (ici positionné en haut à droite)
 ```
@@ -1568,15 +1681,18 @@ output:
       toc_float: true
       toc_depth: 2
       number_sections: true
-# {-} après les headers 3 et 4 pour enlever le numérotage automatique
+# {-} après certains titres si on veut enlever le numérotage automatique pour ceux-là
 ```
 
 + **Python on Rmd**
 
-```{r}
+```{r echo=TRUE, eval=FALSE}
 # En début de Rmd
 library(reticulate)
-py_install("pandas")
+
+# Première utilisation
+py_install("pandas") #pandas
+pip install plotly #plotly, à runer dans le terminal
 
 # Pour utiliser un environnement virtuel
 Sys.setenv(RETICULATE_PYTHON = "path/to/python.exe") 
@@ -1585,6 +1701,7 @@ py_install("pandas", envname = "test_proj", method = "auto")
 use_virtualenv("test_proj")
 ```
 
+
 ```{python}
 #```{python}
 import pandas
@@ -1592,11 +1709,12 @@ import plotly.express as px
 matrice = [[43, 57], [12, 88]]
 fig = px.imshow(matrice)
 fig.show()
+#```
 ```
 
 + **Remove blank space end RMD file**
 
-```{r}
+```{r echo=TRUE, eval=FALSE}
 <div class = "tocify-extend-page" data-unique = "tocify-extend-page" style = "height: 0;"></div>
 ```
 
@@ -1609,21 +1727,29 @@ trackdown::upload_file(file = "scripts/Rapport_final.Rmd", gfile = "Rapport_fina
 trackdown::download_file(file = "scripts/Rapport_final.Rmd", gfile = "Rapport_final.Rmd")
 ```
 
++ **Insert and center image in Rmd page**
+
+```{r echo=TRUE, eval=FALSE}
+<p align="center">
+ <img src="../figures/graĥique.png" width = "110">
+</p>
+```
+
 + **Embed HTML in Rmd page**
 
 Code à mettre en corps de texte pour que ça run : 
 
-```{r}
+```{r eval=FALSE, echo=TRUE}
 # Embed centré, html en ligne (ex: carte ODS)
 <div align="center">
-<iframe frameborder="0" width="800" height="600" src="https://opendata.bordeaux-metropole.fr/map/embed/points_deau_potable_merignac/?&static=false&scrollWheelZoom=false"></iframe>
+<iframe frameborder="0" width="800" height="600" src="lien/vers/mon/graphique"></iframe>
 </div>
 
 # HTML en local
 <iframe src="Save_cartos/carte_p17_t1.html" height="600" width="1000" style="border: 0px solid #464646;" allowfullscreen="" allow="autoplay" data-external="1"></iframe>
 ```
 
-***Attention bien mettre "self_contained: false" dans le header. Affiche error quand preview de l'HTML ; il faut ouvrir dans un browser pour voir le résultat !!***
+***Attention bien mettre "self_contained: false" dans le header. Ouvrir dans un browser pour voir le résultat.***
 
 *Autre solution :*
 
@@ -1631,51 +1757,102 @@ Code à mettre en corps de texte pour que ça run :
 knitr::include_url(glue('../figures/tableau_global/tableau_global_{name_salarie}.html'))
 ```
 
-***Mettre ça dans <style> en haut du rmd pour enlever la bordure noire.***
+***Mettre ça dans `style` en haut du rmd pour enlever la bordure noire.***
 
+```{r eval=FALSE, echo=TRUE}
 iframe {
   border: none;
 }
+```
+
+
 
 
 + **Autmatic tab for elements of a list**
 
 ```{r}
-#voir script ici : https://github.com/datactivist/plans_de_charge/blob/main/scripts/tableau_de_bord.Rmd
+# voir script ici [repo privé] : https://github.com/datactivist/plans_de_charge/blob/main/scripts/tableau_de_bord.Rmd
 # ATTENTION : ne pas mettre de caractères spéciaux (&.) dans les noms data-navmenu=""
 ```
 
----
+<br>
 
-# Git
+# `r fontawesome::fa("github", fill = "#0000CC")` <FONT COLOR="#0000CC">Git</FONT>
+
+<br>
 
 + **Cancel last commit NOT pushed**
 
-```{r}
+```{r eval=FALSE, echo=TRUE}
 git reset HEAD~1
 ```
 
 + **Cancel last commit pushed**
 
-```{r}
+```{r eval=FALSE, echo=TRUE}
 git revert HEAD
 ```
 
 + **Merge diverging branches**
 
-```{r}
+```{r eval=FALSE, echo=TRUE}
 git config pull.rebase false
 ```
 
 + **Stash local changes for specific file**
 
-```{r}
-git stash push scripts/tableau_de_bord.html
+```{r eval=FALSE, echo=TRUE}
+git stash push
+git stash push scripts/tableau_de_bord.html #specific file
 ```
 
----
 
-# Autre
++ **Stash local changes for all files**
+
+```{r eval=FALSE, echo=TRUE}
+git stash # annuler le dernier commit
+git stash push --include-untracked # supprimer tous les changements locaux (pull possible ensuite)
+```
+
+Quand message "*needs merge*" : 
+
+- data/table_tjh.csv
+- commit
+- push
+
+
+<br>
+
+## Github actions
+
+<br>
+
++ **Install package from github (not from CRAN)**
+
+
+1) Télécharger le repo contenant le package via l'URL : *https://github.com/account/reponame/archive/branchname.tar.gz*
+2) Le sauvegarder dans un dossier du repo de travail actuel
+3) L'installer via cette commande à ajouter au .yaml de l'action (***name: install icons package***, sans oublier d'installer le package `remotes`)
+
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          cache-version: 2
+          packages:
+            any::knitr
+            any::tidyverse
+            any::flexdashboard
+            any::remotes
+            
+      - name: install icons package
+        run: |
+          Rscript -e "remotes::install_url('https://raw.githubusercontent.com/datactivist/plans_de_charge/main/.github/workflows/master.tar.gz')"
+
+
+<br>
+
+# `r fontawesome::fa("box-archive", fill = "#0000CC")` <FONT COLOR="#0000CC">Autre</FONT>
+
+<br>
 
 + **Bash commands in R**
 
@@ -1701,20 +1878,29 @@ foreach (year = years) %dopar% {
 stopImplicitCluster()
 ```
 
-+ **Commit conflicts Git R**
++ **Icons pages**
 
-```{r}
-# annuler le dernier commit : git stash
-# supprimer tous les changements locaux (pull possible ensuite) : git stash push --include-untracked
-```
-
-+ **Icons**
-
-[https://fontawesome.com/v5.15/icons?d = gallery&p = 2]()
+[https://fontawesome.com/search?o=r&m=free]()
 
 [https://ionic.io/ionicons]()
 
 [https://jpswalsh.github.io/academicons/]()
 
++ **Icons into rmarkdwon**
+
+`fontawesome::fa("play", fill = "#0000CC")`, meilleure solution.
+
+
+`icon_style(fontawesome("play", style = NULL), fill = "#0000CC")`, implique ce chunk en début de Rmd :
+
+```{r icon-style, eval=FALSE, echo=TRUE}
+#remotes::install_github("mitchelloharawild/icons", force = TRUE)
+library(icons)
+#download_fontawesome()
+library(extrafont)
+```
+
+
 
 <div class = "tocify-extend-page" data-unique = "tocify-extend-page" style = "height: 0;"></div>
+ 
