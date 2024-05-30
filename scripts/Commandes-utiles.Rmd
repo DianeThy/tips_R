@@ -6,6 +6,7 @@ output:
     highlight: textmate
     toc: yes
     toc_float: yes
+    code_folding: show
     includes:
         after_body: footer.html
 ---
@@ -193,9 +194,9 @@ core_histo <- core_histo |> bind_rows()
 <br>
 
 
-## Librairies, noms
+## Packages
 
-+ **Multiple libraries**
++ **Install and/or load multiple packages**
 
 ```{r}
 packages = c("tidyverse", "jsonlite", "glue", "parallel", "doParallel", "foreach")
@@ -210,11 +211,27 @@ package.check <- lapply(
 )
 ```
 
+
+
+<br>
+
+# `r fontawesome::fa("table", fill = "#0000CC")` <FONT COLOR="#0000CC">Traitement de variables</FONT>
+
+<br>
+
+
+## Nettoyage de données
+
+<br>
+
+### Noms de colonnes
+
+
 + **Clean column names**
 
 ```{r}
 library(janitor)
-data <- data |> clean_names()
+data <- data |> clean_names() # retire majuscules, espaces et caractères spéciaux
 ```
 
 
@@ -243,50 +260,7 @@ data <- data |> rename_at(vars(-Name, -State), ~ paste0(., '_2017'))
 data <- data |> select(indicateurs, order(colnames(data)))
 ```
 
-
 <br>
-
-
-
-# `r fontawesome::fa("table", fill = "#0000CC")` <FONT COLOR="#0000CC">Manipulations de variables</FONT>
-
-<br>
-
-
-## Modification de variables
-
-### Dates
-
-+ **Change date format**
-
-```{r}
-data <- mutate(date = format(as.Date(Date, format = "%Y-%m-%d %H:%M:%S"),"%d %B %Y")) #30 mai 2023
-# autres formats : https://www.r-bloggers.com/2013/08/date-formats-in-r/
-```
-
-+ **Dates subtraction**
-
-```{r}
-data <- data |> mutate(nb_weeks = round(as.numeric(difftime(fin, Sys.Date(), units = "weeks")), 0), #semaine
-                       nb_month = round(as.numeric(difftime(fin, Sys.Date(), units = "weeks") /4.34524), 0)) #mois
-```
-
-+ **Dates sum**
-
-```{r}
-library(mondate)
-data <- data |> mutate(date_fin = as.mondate(date_debut) + duree) #duree en mois
-```
-
-+ **Round multiple columns**
-
-```{r}
-data <- data |> mutate_at(vars(var_3:var_17), ~round(.,0))
-```
-
-
-<br>
-
 
 ### NAs
 
@@ -335,29 +309,23 @@ data <- data |> mutate(across(starts_with("Choix_"), ~ na_if(.x, "Pas de préfé
 ```
 
 
+
 <br>
 
-
-### Remplacements
-
-+ **Replace string**
-
-```{r}
-# Valeurs d'une colonne
-data <- data |> mutate(col = str_replace_all(col, c("pattern1 | pattern2" = "replacement")))
-
-# Valeurs du df entier
-data <- data |> mutate_all(function(x) gsub("pattern1 | pattern2", "replacement", x))
-```
+### Variables numériques
 
 
-+ **Remove special characters (all)**
++ **Round multiple columns**
 
 ```{r}
-# Supprimer les caractères spéciaux ex : ? ' !
-data <- data |> mutate(col = str_replace_all(col, "[^[:alnum:]]", " "))
+data <- data |> mutate_at(vars(var_3:var_17), ~round(.,0))
 ```
 
++ **Round values to nearest 5**
+
+```{r}
+plyr::round_any(x, 5)
+```
 
 + **Shaping numeric variables**
 
@@ -370,120 +338,9 @@ format(as.integer(1000000, 0), nsmall = 1, big.mark = ".")
 ```
 
 
-+ **Replace character of multiple columns**
-
-```{r}
-data |> mutate_at(vars(January:December), ~str_replace(., ",", "."))
-```
-
-
 <br>
 
-
-### Listes
-
-+ **Unlist**
-
-```{r}
-data <- data |>
-    pull(column) |> pluck() |> bind_rows() |> 
-    group_by(author_id) |> mutate(n = n()) |> select(author_id, n) |> distinct()
-```
-
-+ **Complex unlist when simple pull/pluck is not working**
-
-```{r}
-# Exemple
-comm1 <- data |> 
-    filter(lengths(comments) != 0) |> 
-    group_by(id) |> 
-    mutate(nb_comments = nrow(comments[[1]])) |> 
-    select(id2, id, comments, nb_comments) |> 
-    pluck() |> bind_rows()
-comm2 <- comm1 |>
-    pull(comments) |> 
-    pluck() |> bind_rows()
-comm1.1 <- comm1 |> ungroup() |> 
-    mutate(index = row_number()) |> 
-    group_by(id) |> 
-    slice(rep(1:n(), each = nb_comments)) |> 
-    arrange(index)
-proj_comm_date <- cbind(comm1.1, comm2) |> ungroup() |> 
-    select(id2, author_id, publishedAt) |> 
-    rename(date = publishedAt) |> mutate(type = "commentaires")
-```
-
-
-<br>
-
-
-### Formats
-
-+ **Pivot longer**
-
-```{r}
-m3 <- data |> select(c(BATIMENTS:TYPE_DE_BATIMENTS, starts_with("m3"))) |> 
-    mutate_all(as.character) |> 
-    pivot_longer(cols = -c(BATIMENTS:TYPE_DE_BATIMENTS), names_to = "Annee", values_to = "m3", names_prefix = "m3_")
-montant <- data |> select(c(BATIMENTS:TYPE_DE_BATIMENTS, starts_with("montant"))) |> 
-    mutate_all(as.character) |> 
-    pivot_longer(cols = -c(BATIMENTS:TYPE_DE_BATIMENTS), names_to = "Annee", values_to = "montant", names_prefix = "montant_")
-final <- cbind(m3, montant |> select(montant))
-```
-
-+ **Pivot wider**
-
-```{r}
-data <- data |> 
-    pivot_wider(names_from = choix, values_from = nb_interesses, names_prefix = "choix_")
-```
-
-+ **Split comma separated values**
-
-```{r}
-# Split 
-unnested_bso <- unnested_bso |> mutate(journal_issns = strsplit(as.character(journal_issns), ",")) |> unnest(journal_issns)
-# Unsplit
-unnested_bso <- unnested_bso |> mutate(journal_issns = paste0(unique(na.omit(journal_issns)), collapse = ","))
-```
-
-
-
-<br>
-
-
-
-## Création de variables
-
-+ **Create column if it does not already exist**
-
-```{r}
-datat <- data |> mutate(`NA` = ifelse("NA" %in% names(data), `NA`, "0%"))
-```
-
-
-+ **Merge 2 columns into 1**
-
-```{r}
-data <- data |> mutate(new_col = coalesce(col1,col2,col3))
-```
-
-+ **Calculate sum accross mutliple columns df**
-
-```{r}
-data |> rowwise() |> mutate(sum_multiple = sum(c_across(var_3:var_17)))
-```
-
-+ **Calculate difference between rows by group**
-
-```{r}
-data |> group_by(Structure) |> mutate(ecart = Pourcentage - lag(Pourcentage))
-```
-
-<br>
-
-
-### Valeurs aléatoires, indices, `rep()`, `seq()`
+#### Indices, `rep()`, `seq()`
 
 + **Index rep**
 
@@ -500,17 +357,37 @@ data <- data |>
 ```
 
 
-+ **Random values**
+<br>
+
+#### Dates
+
++ **Change date format**
 
 ```{r}
-random <- c("groupe 1", "groupe 2", "groupe 3")
-sample(random, size = nrow(data), replace = TRUE, prob = c(9/10,0.06,0.04))
+data <- mutate(date = format(as.Date(Date, format = "%Y-%m-%d %H:%M:%S"),"%d %B %Y")) #30 mai 2023
+# autres formats : https://www.r-bloggers.com/2013/08/date-formats-in-r/
 ```
+
++ **Dates subtraction**
+
+```{r}
+data <- data |> mutate(nb_weeks = round(as.numeric(difftime(fin, Sys.Date(), units = "weeks")), 0), #semaine
+                       nb_month = round(as.numeric(difftime(fin, Sys.Date(), units = "weeks") /4.34524), 0)) #mois
+```
+
++ **Dates sum**
+
+```{r}
+library(mondate)
+data <- data |> mutate(date_fin = as.mondate(date_debut) + duree) #duree en mois
+```
+
+
 
 <br>
 
 
-### Âge
+#### Âge
 
 + **Check intersections between intervals**
 
@@ -536,9 +413,24 @@ data <- data |> mutate(age = round(as.numeric(difftime(Sys.Date(), dateOfBirth, 
 
 <br>
 
+### Chaînes de caractères
+
++ **Replace string**
+
+```{r}
+# Valeurs d'une colonne
+data <- data |> mutate(col = str_replace_all(col, c("pattern1 | pattern2" = "replacement")))
+
+# Valeurs du df entier
+data <- data |> mutate_all(function(x) gsub("pattern1 | pattern2", "replacement", x))
+```
 
 
-## Chaînes de caractères
++ **Replace character of multiple columns**
+
+```{r}
+data |> mutate_at(vars(January:December), ~str_replace(., ",", "."))
+```
 
 + **Upper string and remove special characters**
 
@@ -589,6 +481,19 @@ data <- data |> mutate(col = gsub("\\W*\\b\\w\\b\\W*", " ", string))
 data <- data |> mutate(col = trimws(string, which = "left"))
 ```
 
++ **Remove first digit if 0**
+
+```{r}
+data <- data |> mutate(num = gsub("^0", "", num))
+```
+
++ **Remove special characters (all)**
+
+```{r}
+# Supprimer les caractères spéciaux ex : ? ' !
+data <- data |> mutate(col = str_replace_all(col, "[^[:alnum:]]", " "))
+```
+
 + **Keep first word**
 
 ```{r}
@@ -627,12 +532,6 @@ data <- data |> mutate(num = sprintf("%02d", num)) #passer de 1 à 2 digits
 data <- data |> mutate(num = str_pad(num, 14, pad = "0")) #obliger à avoir 14 caractères (donc ajoute 0 en début si besoin)
 ```
 
-+ **Remove first digit if 0**
-
-```{r}
-data <- data |> mutate(num = gsub("^0", "", num))
-```
-
 + **Only 1 character in a string**
 
 ```{r}
@@ -643,10 +542,7 @@ nchar(string) ==  1
 
 <br>
 
-
-
-
-### Regular expressions (regex)
+#### Regular expressions (regex)
 
 + **Detect digits**
 
@@ -726,6 +622,45 @@ sapply(str_extract_all("+3214FSEtest!! 1", "[\\d+]+"), function(x) paste(x,colla
 
 <br>
 
+### Listes
+
++ **Unlist**
+
+```{r}
+data <- data |>
+    pull(column) |> pluck() |> bind_rows() |> 
+    group_by(author_id) |> mutate(n = n()) |> select(author_id, n) |> distinct()
+```
+
++ **Complex unlist when simple pull/pluck is not working**
+
+```{r}
+# Exemple
+comm1 <- data |> 
+    filter(lengths(comments) != 0) |> 
+    group_by(id) |> 
+    mutate(nb_comments = nrow(comments[[1]])) |> 
+    select(id2, id, comments, nb_comments) |> 
+    pluck() |> bind_rows()
+comm2 <- comm1 |>
+    pull(comments) |> 
+    pluck() |> bind_rows()
+comm1.1 <- comm1 |> ungroup() |> 
+    mutate(index = row_number()) |> 
+    group_by(id) |> 
+    slice(rep(1:n(), each = nb_comments)) |> 
+    arrange(index)
+proj_comm_date <- cbind(comm1.1, comm2) |> ungroup() |> 
+    select(id2, author_id, publishedAt) |> 
+    rename(date = publishedAt) |> mutate(type = "commentaires")
+```
+
+
+
+
+
+<br>
+
 
 ## Filtres
 
@@ -764,94 +699,73 @@ data |>
 ```
 
 
+
+
+
 <br>
 
-
-## Fonctions
-
-
-+ **Export object created within function**
-
-```{r}
-assign(glue("n_{year}"), n, envir = .GlobalEnv)
-```
-
-+ **Detach created object from environment**
-
-```{r}
-rm(ls = inter_bv, ratio, area_commune, area_2017)
-```
-
-+ **Possibly function treatment**
-
-```{r}
-tryCatch(ma_fonction(data), error = function(e) NULL)
-```
-
-+ **Use function saved in other directory**
-
-```{r}
-source(here("functions", "match_commune.R"))
-object <- memoise::memoise(match_commune, cache = memoise::cache_filesystem(here("cache")))
-```
-
-+ **Call variable within created function**
-
-```{r}
-fonction <- function(data, variable){
-    data |> filter({{variable}} == 2)
-}
-```
-
-+ **Rename column wihtin created function**
-
-```{r}
-fonction <- function(new_cols, cols){
-    data |> rename({{ new_cols }} := {{ cols }}) 
-}
-```
-
-+ **Huge utilisation created function**
-
-```{r}
-library(purrr)
-purrr::map(.x = c(13:16, 18, 26:38, 40:44, 46, 49, 55, 66:68, 70, 84:90, 93:96, 99:108, 111:113, 115, 139, 162:178, 180, 181, 188:197),
-          .f = ~table_recap_simple(.x))
-table_recap_stat <- rbind(lapply(ls(pattern="^all_stat_"), function(x) get(x))) |> 
-    bind_rows()
-```
-
-+ **"Error in `auto_copy()`: ! `x` and `y` must share the same src"**
-
-Dans une fonction créée, lorsqu'une base de données est appelée sans être mise comme argument attendu, il faut l'ajouter comme argument de fonction. 
+# `r fontawesome::fa("database", fill = "#0000CC")` <FONT COLOR="#0000CC">Traitement de dataframes</FONT>
 
 
 <br>
 
 
-## Autre
+## Formats 
 
-+ **Redundancy test**
-
-```{r}
-identical(data$id1, data$id2)
-```
-
-+ **Increase total system memory R session**
++ **Pivot longer**
 
 ```{r}
-library(unix) #pour linux
-rlimit_as(1e20)  #increases to ~12GB
+m3 <- data |> select(c(BATIMENTS:TYPE_DE_BATIMENTS, starts_with("m3"))) |> 
+    mutate_all(as.character) |> 
+    pivot_longer(cols = -c(BATIMENTS:TYPE_DE_BATIMENTS), names_to = "Annee", values_to = "m3", names_prefix = "m3_")
+montant <- data |> select(c(BATIMENTS:TYPE_DE_BATIMENTS, starts_with("montant"))) |> 
+    mutate_all(as.character) |> 
+    pivot_longer(cols = -c(BATIMENTS:TYPE_DE_BATIMENTS), names_to = "Annee", values_to = "montant", names_prefix = "montant_")
+final <- cbind(m3, montant |> select(montant))
 ```
 
++ **Pivot wider**
+
+```{r}
+data <- data |> 
+    pivot_wider(names_from = choix, values_from = nb_interesses, names_prefix = "choix_")
+```
+
++ **Split comma separated values**
+
+```{r}
+# Split 
+unnested_bso <- unnested_bso |> mutate(journal_issns = strsplit(as.character(journal_issns), ",")) |> unnest(journal_issns)
+# Unsplit
+unnested_bso <- unnested_bso |> mutate(journal_issns = paste0(unique(na.omit(journal_issns)), collapse = ","))
+```
+
++ **Repeat row based on column number**
+
+```{r}
+data |> uncount(x)
+```
+
+
++ **Random values with specific probability**
+
+```{r}
+random <- c("groupe 1", "groupe 2", "groupe 3")
+sample(random, size = nrow(data), replace = TRUE, prob = c(1/2,3/5,2/5))
+```
 
 <br>
 
 
 
-# `r fontawesome::fa("database", fill = "#0000CC")` <FONT COLOR="#0000CC">Manipulations de dataframes</FONT>
+## Merge, join
 
-<br>
+
++ **Merge 2 columns into 1**
+
+```{r}
+data <- data |> mutate(new_col = coalesce(col1,col2,col3))
+```
 
 
 + **Fuzzy join**
@@ -887,16 +801,37 @@ semi_join(df1, df2)
 ```
 
 
+
+
+
+## Autre
+
++ **Redundancy test**
+
+```{r}
+identical(data$id1, data$id2)
+```
+
++ **Increase total system memory R session**
+
+```{r}
+library(unix) #pour linux
+rlimit_as(1e20)  #increases to ~12GB
+```
+
+
+
+
 <br>
 
 
 
-# `r fontawesome::fa("chart-line", fill = "#0000CC")` <FONT COLOR="#0000CC">Analyse</FONT>
+# `r fontawesome::fa("chart-line", fill = "#0000CC")` <FONT COLOR="#0000CC">Analyse de données</FONT>
 
 <br>
 
 
-## Statistiques
+## Opérations, statistiques
 
 + **NAs per column of a dataframe**
 
@@ -934,10 +869,25 @@ data <- data |> summarise(n = n(), .by = group) #dplyr
 data |> mutate(new_cat = sum(n[Catégorie2 == "Total"])) #[]
 ```
 
++ **Calculate sum accross mutliple columns df**
+
+```{r}
+data |> rowwise() |> mutate(sum_multiple = sum(c_across(var_3:var_17)))
+```
+
++ **Calculate difference between rows by group**
+
+```{r}
+data |> group_by(Structure) |> mutate(ecart = Pourcentage - lag(Pourcentage))
+```
+
+
+
+
 
 <br>
 
-## Visualisations
+## Dataviz
 
 + **Reorder values before plotting**
 
@@ -1057,7 +1007,7 @@ theme(panel.grid.major.x = ggplot2::element_line(color = "#cbcbcb"),
 
 ### Par élément
 
-+ **Geometry**
+#### Geometry
 
 ```{r}
 # Geométrie initiale
@@ -1084,7 +1034,7 @@ theme(panel.grid.major.x = ggplot2::element_line(color = "#cbcbcb"),
 coord_fixed(clip = 'off') # geom_label() déborde du graph
 ```
 
-+ **Scales**
+#### Scales
 
 ```{r}
   xlim(1, 100) +
@@ -1104,7 +1054,7 @@ coord_fixed(clip = 'off') # geom_label() déborde du graph
                   breaks = c("Oui", "Oui, au cours des deux dernières années", "Non, mais c’est prévu dans les 12 prochains mois")) #order items legend
 ```
 
-+ **Labs**
+#### Labs
 
 ```{r}
 # titres trop longs, automatiquement coupés
@@ -1119,7 +1069,7 @@ ggplot(data) +
 
 ```
 
-+ **Theme**
+#### Theme
 
 ```{r}
   theme_classic() +
@@ -1135,7 +1085,7 @@ ggplot(data) +
         ) +
 ```
 
-+ **Facet**
+#### Facet
 
 ```{r}
   facet_grid(Projet ~ ., 
@@ -1148,7 +1098,7 @@ ggplot(data) +
   facet_wrap(~vote, scales='free_x') + scale_y_continuous(limits=c(0 ,50)) # pour avoir les ticks sur chaque facettes et pas juste celles du bas
 ```
 
-+ **Legend**
+#### Legend
 
 ```{r}
   guides(fill = guide_legend(nrow = 6, byrow = TRUE,  # nombre d'éléments par ligne
@@ -1157,7 +1107,7 @@ ggplot(data) +
         col = guide_legend(title = "", reverse = TRUE, override.aes = list(lwd = 2))) + #lwd = 2 pour ligne plus épaisse et plus visible dans la légende
 ```
 
-+ **Colors**
+#### Colors
 
 ```{r}
 scale_fill_manual(values = c("#c898ae", "#da4729", "#f38337", "#74a466", "#fecf5d", "#5E79AC")) #couleurs Bauhaus
@@ -1548,6 +1498,8 @@ table |>
 + `gttable()`
 
 ```{r}
+library(gt)
+library(gtExtras)
 data |> 
   gt() |>
   gt_theme_nytimes() |> 
@@ -1556,7 +1508,7 @@ data |>
     locations = cells_body(columns = ma_col)) |> 
   cols_align(align = "center", columns = everything()) |> 
   cols_align(align = "left", columns = c(col1, col2)) |> 
-  gt_plt_bar_pct(`% temps`, scaled = TRUE, labels=TRUE, decimals = 0, 
+  gt_plt_bar_pct(`% temps`, scaled = TRUE, labels=TRUE, decimals = 0, #attention à remplacer les NA par 0 sinon erreur
            font_size = "14px", fill = "#173541", height = 20)
 ```
 
@@ -1580,6 +1532,8 @@ kableExtra::kable_styling(bootstrap_options = c("striped", "hover"))
 # `r fontawesome::fa("circle-stop", fill = "#0000CC", prefer_type = "solid")` <FONT COLOR="#0000CC">Fin d'analyse</FONT>
 
 <br>
+
+## Export
 
 + **Export CSV**
 
@@ -1605,14 +1559,9 @@ library(htmlwidgets)
 saveWidget(map, file = "ma_carte.html")
 ```
 
-
-
-
 <br>
 
-# `r fontawesome::fa("markdown", fill = "#0000CC")` <FONT COLOR="#0000CC">R Markdown</FONT>
-
-<br>
+## R Markdown
 
 + **Footer, css, header files in other folder**
 
@@ -1765,21 +1714,14 @@ iframe {
 }
 ```
 
++ **Documentation**
 
-
-
-+ **Autmatic tab for elements of a list**
-
-```{r}
-# voir script ici [repo privé] : https://github.com/datactivist/plans_de_charge/blob/main/scripts/tableau_de_bord.Rmd
-# ATTENTION : ne pas mettre de caractères spéciaux (&.) dans les noms data-navmenu=""
-```
+[Pimp my rmd](https://holtzy.github.io/Pimp-my-rmd/), Yan Holtz
 
 <br>
 
-# `r fontawesome::fa("github", fill = "#0000CC")` <FONT COLOR="#0000CC">Git</FONT>
+## Git
 
-<br>
 
 + **Cancel last commit NOT pushed**
 
@@ -1823,9 +1765,8 @@ Quand message "*needs merge*" :
 
 <br>
 
-## Github actions
+### Github actions
 
-<br>
 
 + **Install package from github (not from CRAN)**
 
@@ -1850,7 +1791,7 @@ Quand message "*needs merge*" :
 
 <br>
 
-# `r fontawesome::fa("box-archive", fill = "#0000CC")` <FONT COLOR="#0000CC">Autre</FONT>
+# `r fontawesome::fa("box-archive", fill = "#0000CC")` <FONT COLOR="#0000CC">Divers</FONT>
 
 <br>
 
@@ -1878,6 +1819,10 @@ foreach (year = years) %dopar% {
 stopImplicitCluster()
 ```
 
+<br>
+
+### Icônes
+
 + **Icons pages**
 
 [https://fontawesome.com/search?o=r&m=free]()
@@ -1899,6 +1844,82 @@ library(icons)
 #download_fontawesome()
 library(extrafont)
 ```
+
+
+
+### Fonctions créées
+
+
++ **Export object created within function**
+
+```{r}
+assign(glue("n_{year}"), n, envir = .GlobalEnv)
+```
+
++ **Detach created object from environment**
+
+```{r}
+rm(ls = inter_bv, ratio, area_commune, area_2017)
+```
+
++ **Possibly function treatment**
+
+```{r}
+tryCatch(ma_fonction(data), error = function(e) NULL)
+```
+
++ **Use function saved in other directory**
+
+```{r}
+source(here("functions", "match_commune.R"))
+object <- memoise::memoise(match_commune, cache = memoise::cache_filesystem(here("cache")))
+```
+
++ **Call variable within created function**
+
+```{r}
+fonction <- function(data, variable){
+    data |> filter({{variable}} == 2)
+}
+```
+
++ **Rename column wihtin created function**
+
+```{r}
+fonction <- function(new_cols, cols){
+    data |> rename({{ new_cols }} := {{ cols }}) 
+}
+```
+
++ **Huge utilisation created function**
+
+```{r}
+library(purrr)
+purrr::map(.x = c(13:16, 18, 26:38, 40:44, 46, 49, 55, 66:68, 70, 84:90, 93:96, 99:108, 111:113, 115, 139, 162:178, 180, 181, 188:197),
+          .f = ~table_recap_simple(.x))
+table_recap_stat <- rbind(lapply(ls(pattern="^all_stat_"), function(x) get(x))) |> 
+    bind_rows()
+```
+
++ **Create column if it does not already exist**
+
+```{r}
+datat <- data |> mutate(`NA` = ifelse("NA" %in% names(data), `NA`, "0%"))
+```
+
++ **"Error in `auto_copy()`: ! `x` and `y` must share the same src"**
+
+Dans une fonction créée, lorsqu'une base de données est appelée sans être mise comme argument attendu, il faut l'ajouter comme argument de fonction. 
+
+
+
++ **Automatic tab for elements of a list**
+
+```{r}
+# voir script ici [repo privé] : https://github.com/datactivist/plans_de_charge/blob/main/scripts/tableau_de_bord.Rmd
+# ATTENTION : ne pas mettre de caractères spéciaux (&.) dans les noms data-navmenu=""
+```
+
 
 
 
