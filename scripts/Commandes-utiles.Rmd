@@ -337,6 +337,17 @@ format(round(100000000 / 1e6, 1), trim = TRUE)
 format(as.integer(1000000, 0), nsmall = 1, big.mark = ".")
 ```
 
++ **"Total" row per group**
+
+```{r}
+library(janitor)
+data <- data |> 
+    group_by(Var2) |> 
+    group_modify(~ adorn_totals(.x, where = "row")) |> 
+    ungroup() |> 
+    arrange(fct_relevel(Commune, 'Total')) #puis trier avec ligne "Total" en haut puis ordre alphabétique sur colonne "Commune"
+```
+
 
 <br>
 
@@ -881,6 +892,27 @@ data |> rowwise() |> mutate(sum_multiple = sum(c_across(var_3:var_17)))
 data |> group_by(Structure) |> mutate(ecart = Pourcentage - lag(Pourcentage))
 ```
 
++ **Weighted mean and median**
+
+```{r}
+# Fonction pour calculer une médiane pondérée
+weighted_median <- function(x, w) {
+  df <- data.frame(x = x, w = w) |>
+    arrange(x)
+  cum_w <- cumsum(df$w)
+  cut_point <- sum(df$w) / 2
+  median <- df$x[which(cum_w >= cut_point)[1]]
+  return(median)
+}
+
+# Calculs pondérés
+library(stats)
+library(questionr)
+data |> mutate(n_moyen_stats = round(weighted.mean(n_repondants, PONDFIN_logit), 2), #package stats
+               n_moyen_questionr = round(questionr::wtd.mean(n_repondants, PONDFIN_logit), 2), #package questionr
+               n_moyen_manuel = round(sum(n_repondants * PONDFIN_logit) / sum(PONDFIN_logit), 2), #calcul manuel
+               n_median_pondere = weighted_median(n_repondants, PONDFIN_logit)) #médiane
+```
 
 
 
@@ -1058,13 +1090,13 @@ coord_fixed(clip = 'off') # geom_label() déborde du graph
 
 ```{r}
 # titres trop longs, automatiquement coupés
-title = stringr::str_wrap("Commençons par la protection de la vie privée. Considérez-vous que votre structure est en conformité avec le RGPD ?", width = 45)
+title = stringr::str_wrap("Exemple de titre très très très très très très très très très très très très long", width = 45)
 
 # titres avec des mots colorés
 library(ggtext)
 ggplot(data) +
     geom_point() +
-    labs(title = "Décorrelation entre la phase <span style='color: #323465; font-size: 23pt;'>Analyse, traitement, calcul</span> et les autres phases du cycle de vie") +
+    labs(title = "Dans mon titre je veux mettre en avant <span style='color: #323465; font-size: 23pt;'>cette catégorie</span> par rapport aux autres") +
     theme(plot.title = element_markdown()) #coloré et taille plus grande
 
 ```
@@ -1495,7 +1527,7 @@ table |>
 
 ## Tables
 
-+ `gttable()`
+### `gttable()`
 
 ```{r}
 library(gt)
@@ -1512,20 +1544,125 @@ data |>
            font_size = "14px", fill = "#173541", height = 20)
 ```
 
-+ `DT::datatable()`
+<br>
+
+### `DT::datatable()`
 
 ```{r}
 datatable(dtable)
 ```
 
-+ `knitr::kable()`
+<br>
+
+### `knitr::kable()`
 
 ```{r}
 knitr::kable(stat_indiv, format = "html") |> 
 kableExtra::kable_styling(bootstrap_options = c("striped", "hover"))
 ```
 
+<br>
 
+### `reactable()`
+
++ **Colorize cells based on categorical column**
+
+```{r}
+library(reactable)
+
+# Fonction pour colorer les catégories
+category_styles <- function(Catégorie) {
+  case_when(
+    Catégorie == "Faible" ~ list(background = "#e3f2fd", color = "black"),
+    Catégorie == "Moyen" ~ list(background = "#b5dbfb", color = "black"),
+    Catégorie == "Élevé" ~ list(background = "#1d82df", color = "white"),
+    Catégorie == "Très élevé" ~ list(background = "#0d47a1", color = "white"),
+    Catégorie == "NA" ~ list(background = "#CCCCCC", color = "black"),
+    TRUE ~ list(background = NA, color = NA)
+  )
+}
+
+# Affichage de la table
+table |> 
+    reactable(columns = list(Catégorie = colDef(style = function(value){category_styles(value)})))
+```
+
+
++ **Colorize all columns except one based on numerical column**
+
+```{r}
+# Indicateurs en une table
+table <- data.frame(
+  Nom = c("nom1", "nom3", "nom3"),
+  Score = c(85, 92, 78),
+  Age = c(25, 30, 22),
+  Height = c(160, 175, 168)
+)
+
+# Fonction pour colorer les indicateurs
+indicateur_styles <- function(Indicateur) {
+    # calcul des statistiques
+  q1 <- quantile(Indicateur, 0.25, na.rm = TRUE)
+  med <- median(Indicateur, na.rm = TRUE)
+  q3 <- quantile(Indicateur, 0.75, na.rm = TRUE)
+    # conditions de mise en forme
+  sapply(Indicateur, function(value) {
+    dplyr::case_when(
+      value <= q1 ~ "background-color: #e3f2fd; color: black;",
+      value > q1 & value <= med ~ "background-color: #b5dbfb; color: black;",
+      value > med & value <= q3 ~ "background-color: #1d82df; color: white;",
+      value > q3 ~ "background-color: #0d47a1; color: white;",
+      TRUE ~ "background-color: #CCCCCC; color: black;"
+    )
+  })
+}
+
+# Liste des colonnes sur lesquelles appliquer le style
+column_defs <- setNames(
+  lapply(names(table), function(col) {
+    colDef(
+      style = if (col != "Nom") {
+        function(value, index, name) {
+          indicateur_styles(table[[col]])[index]
+        }
+      } else {
+        NULL
+      }
+    )
+  }),
+  names(table)
+)
+
+# Affichage de la table
+table |> 
+    reactable(columns = column_defs, defaultPageSize = 5)
+```
+
+
++ **Freeze first column**
+
+```{r}
+# Fixer la première colonne
+data |> reactable(columns = list(ID = colDef(sticky = "left")))
+
+# Fonction pour fixer la première colonne en plus d'appliquer aux autres colonnes la mise en forme des couleurs
+column_defs <- setNames(
+  lapply(names(table), function(col) {
+    if (col != "ID") {
+      colDef(
+        style = function(value, index, name) {
+          indicateur_styles(table[[col]])[index]
+        }
+      )
+    } else {
+      colDef(
+        sticky = "left"
+      )
+    }
+  }),
+  names(table)
+)
+```
 
 <br>
 
@@ -1846,6 +1983,9 @@ library(extrafont)
 ```
 
 
++ **Illustrations libres de droits**
+
+[https://cocomaterial.com/]()
 
 ### Fonctions créées
 
