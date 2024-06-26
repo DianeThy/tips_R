@@ -346,6 +346,12 @@ data <- data |>
     group_modify(~ adorn_totals(.x, where = "row")) |> 
     ungroup() |> 
     arrange(fct_relevel(Commune, 'Total')) #puis trier avec ligne "Total" en haut puis ordre alphabétique sur colonne "Commune"
+
+# Solving error "trying to re-add a totals dimension that is already been added"
+data |> 
+    untabyl() |> #ajouter avant le total
+    adorn_totals() 
+
 ```
 
 
@@ -521,7 +527,7 @@ data <- data |> mutate(min = str_nth_number(string, n = 1)) # extrait le 1er chi
 + **Extract year**
 
 ```{r}
-data <- data |> mutate(annee = str_extract(`En quelle année ?`, "(1|2)\\d{3}")) #"\\d{5}" pour zipCode
+data <- data |> mutate(annee = str_extract(`En quelle année ?`, "(1|2)\\d{3}")) #seulement "\\d{5}" pour zipCode
 ```
 
 + **Extract n first characters**
@@ -629,6 +635,13 @@ str_extract(string, "\\s+(.*)")
 sapply(str_extract_all("+3214FSEtest!! 1", "[\\d+]+"), function(x) paste(x,collapse=""))
 ```
 
++ **Replace misled zip code**
+
+```{r}
+# Reformater code postal mal renseigné (avec des espaces entre les 5 digits)
+# Exemple : "49, avenue Du grau du rieu Marseillan Occitanie 34 340 France"
+mutate(adresses = str_replace_all(adresses, "\\b(\\d{2}) (\\d{3})\\b", "\\1\\2"))
+```
 
 
 <br>
@@ -746,9 +759,9 @@ data <- data |>
 
 ```{r}
 # Split 
-unnested_bso <- unnested_bso |> mutate(journal_issns = strsplit(as.character(journal_issns), ",")) |> unnest(journal_issns)
+data <- data |> mutate(journal_issns = strsplit(as.character(journal_issns), ",")) |> unnest(journal_issns)
 # Unsplit
-unnested_bso <- unnested_bso |> mutate(journal_issns = paste0(unique(na.omit(journal_issns)), collapse = ","))
+data <- data |> mutate(journal_issns = paste0(unique(na.omit(journal_issns)), collapse = ","))
 ```
 
 + **Repeat row based on column number**
@@ -772,7 +785,7 @@ sample(random, size = nrow(data), replace = TRUE, prob = c(1/2,3/5,2/5))
 ## Merge, join
 
 
-+ **Merge 2 columns into 1**
++ **Merge 2 or more columns into 1**
 
 ```{r}
 data <- data |> mutate(new_col = coalesce(col1,col2,col3))
@@ -862,8 +875,7 @@ nb_NA <- as.data.frame(apply(is.na(data), 2, sum)) |>
 
 ```{r}
 table <- data |> 
-    group_by(group) |> 
-    summarise_all(list(~sum(!is.na(.))))
+    summarise_all(list(~sum(!is.na(.))), .by = group)
 ```
 
 + **Values frequency**
@@ -1664,6 +1676,18 @@ column_defs <- setNames(
 )
 ```
 
+
++ **Export reactable as HTML and JPG**
+
+```{r}
+# Export de la table
+library(htmlwidgets)
+library(webshot2)
+saveWidget(widget = table_rea, file = "../mon_path/data.html", selfcontained = TRUE)
+webshot2::webshot("../mon_path/data.html", "../mon_path/data.jpg", 
+                  vwidth = 1200, vheight = 600)
+```
+
 <br>
 
 # `r fontawesome::fa("circle-stop", fill = "#0000CC", prefer_type = "solid")` <FONT COLOR="#0000CC">Fin d'analyse</FONT>
@@ -1700,7 +1724,7 @@ saveWidget(map, file = "ma_carte.html")
 
 ## R Markdown
 
-+ **Footer, css, header files in other folder**
++ **Footer, CSS, header files in other folder**
 
 ```{r}
 includes:
@@ -1719,6 +1743,7 @@ htmltools::img(src = "lien/vers/mon/image",
 + **Output file into 'reports' folder**
 
 ```{r}
+# Mettre dans le header du document RMD
 knit: (
   function(inputFile, encoding) { 
     rmarkdown::render(inputFile, params = "ask",  
@@ -1730,6 +1755,7 @@ knit: (
 + **Justify text**
 
 ```{r}
+# Mettre en corps de texte du RMD où dans un fichier CSS à part
 <style>
 body {
 text-align: justify
@@ -1817,7 +1843,7 @@ trackdown::download_file(file = "scripts/Rapport_final.Rmd", gfile = "Rapport_fi
 
 ```{r echo=TRUE, eval=FALSE}
 <p align="center">
- <img src="../figures/graĥique.png" width = "110">
+ <img src="../figures/graphique.png" width = "110">
 </p>
 ```
 
@@ -1843,7 +1869,7 @@ Code à mettre en corps de texte pour que ça run :
 knitr::include_url(glue('../figures/tableau_global/tableau_global_{name_salarie}.html'))
 ```
 
-***Mettre ça dans `style` en haut du rmd pour enlever la bordure noire.***
+***Mettre ça dans `<style>` en corps de texte du RMD pour enlever la bordure noire.***
 
 ```{r eval=FALSE, echo=TRUE}
 iframe {
@@ -1912,6 +1938,8 @@ Quand message "*needs merge*" :
 2) Le sauvegarder dans un dossier du repo de travail actuel
 3) L'installer via cette commande à ajouter au .yaml de l'action (***name: install icons package***, sans oublier d'installer le package `remotes`)
 
+```{r}
+# Intégrer dans .github/workflows/render-document.yaml
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
           cache-version: 2
@@ -1924,6 +1952,7 @@ Quand message "*needs merge*" :
       - name: install icons package
         run: |
           Rscript -e "remotes::install_url('https://raw.githubusercontent.com/datactivist/plans_de_charge/main/.github/workflows/master.tar.gz')"
+```
 
 
 <br>
@@ -1935,7 +1964,7 @@ Quand message "*needs merge*" :
 + **Bash commands in R**
 
 ```{r}
-system(glue("cat {in_dir}/study-apc_{year}.jsonl | jq -c '{{doi, year, bso_classification, hal_id}}' | jq --slurp > {out_dir}/unnested_bso_{year}.json"))
+system(glue("cat {in_dir}/raw_data_{year}.jsonl | jq -c '{{doi, year, bso_classification, hal_id}}' | jq --slurp > {out_dir}/unnested_data_{year}.json"))
 ```
 
 + **Parallel execution command**
@@ -1950,7 +1979,7 @@ numCores <- 2
 registerDoParallel(numCores)
 
 foreach (year = years) %dopar% {
-  subjson_bso(year)
+  ma_fonction(year)
 }
 
 stopImplicitCluster()
@@ -2051,9 +2080,29 @@ datat <- data |> mutate(`NA` = ifelse("NA" %in% names(data), `NA`, "0%"))
 
 Dans une fonction créée, lorsqu'une base de données est appelée sans être mise comme argument attendu, il faut l'ajouter comme argument de fonction. 
 
++ **Get statistics within function**
+
+```{r}
+inter_categories <- function(data, variable){
+    # Calcul
+    min_val <- min(data[[variable]], na.rm = TRUE) #data[[variable]] pour accéder à la variable dans un df
+    q1 <- quantile(data[[variable]], 0.25, na.rm = TRUE)
+    med <- median(data[[variable]], na.rm = TRUE)
+    q3 <- quantile(data[[variable]], 0.75, na.rm = TRUE)
+    max_val <- max(data[[variable]], na.rm = TRUE)
+    
+    # Assignation à l'environnement global
+    assign("min_val", min_val, envir = .GlobalEnv) #nom d'objet "min_val" et pas "min" pour pas crééer de conflit avec le nom de fonction
+    assign("q1", q1, envir = .GlobalEnv)
+    assign("med", med, envir = .GlobalEnv)
+    assign("q3", q3, envir = .GlobalEnv)
+    assign("max_val", max_val, envir = .GlobalEnv)
+}
+inter_categories(table, "Densité (habitant par m²)") #nom de variable entre guillemets et pas backticks sinon est considéré comme objet à part et non une variable du jeu de données
+```
 
 
-+ **Automatic tab for elements of a list**
++ **Automatic tab for elements of a list in a flexdashboard document**
 
 ```{r}
 # voir script ici [repo privé] : https://github.com/datactivist/plans_de_charge/blob/main/scripts/tableau_de_bord.Rmd

@@ -1582,7 +1582,7 @@ div.tocify {
 
 
 <h1 class="title toc-ignore">Commandes utiles</h1>
-<h4 class="date">Mis à jour le 17 juin 2024</h4>
+<h4 class="date">Mis à jour le 26 juin 2024</h4>
 
 </div>
 
@@ -1853,7 +1853,12 @@ data &lt;- data |&gt;
     group_by(Var2) |&gt; 
     group_modify(~ adorn_totals(.x, where = &quot;row&quot;)) |&gt; 
     ungroup() |&gt; 
-    arrange(fct_relevel(Commune, &#39;Total&#39;)) #puis trier avec ligne &quot;Total&quot; en haut puis ordre alphabétique sur colonne &quot;Commune&quot;</code></pre>
+    arrange(fct_relevel(Commune, &#39;Total&#39;)) #puis trier avec ligne &quot;Total&quot; en haut puis ordre alphabétique sur colonne &quot;Commune&quot;
+
+# Solving error &quot;trying to re-add a totals dimension that is already been added&quot;
+data |&gt; 
+    untabyl() |&gt; #ajouter avant le total
+    adorn_totals() </code></pre>
 <p><br></p>
 <div id="indices-rep-seq" class="section level4">
 <h4>Indices, <code>rep()</code>, <code>seq()</code></h4>
@@ -1978,7 +1983,7 @@ data &lt;- data |&gt; mutate(min = str_nth_number(string, n = 1)) # extrait le 1
 <ul>
 <li><strong>Extract year</strong></li>
 </ul>
-<pre class="r"><code>data &lt;- data |&gt; mutate(annee = str_extract(`En quelle année ?`, &quot;(1|2)\\d{3}&quot;)) #&quot;\\d{5}&quot; pour zipCode</code></pre>
+<pre class="r"><code>data &lt;- data |&gt; mutate(annee = str_extract(`En quelle année ?`, &quot;(1|2)\\d{3}&quot;)) #seulement &quot;\\d{5}&quot; pour zipCode</code></pre>
 <ul>
 <li><strong>Extract n first characters</strong></li>
 </ul>
@@ -2051,6 +2056,12 @@ substr(Question, 1, nchar(Question)-1) #remove last character</code></pre>
 cell</strong></li>
 </ul>
 <pre class="r"><code>sapply(str_extract_all(&quot;+3214FSEtest!! 1&quot;, &quot;[\\d+]+&quot;), function(x) paste(x,collapse=&quot;&quot;))</code></pre>
+<ul>
+<li><strong>Replace misled zip code</strong></li>
+</ul>
+<pre class="r"><code># Reformater code postal mal renseigné (avec des espaces entre les 5 digits)
+# Exemple : &quot;49, avenue Du grau du rieu Marseillan Occitanie 34 340 France&quot;
+mutate(adresses = str_replace_all(adresses, &quot;\\b(\\d{2}) (\\d{3})\\b&quot;, &quot;\\1\\2&quot;))</code></pre>
 <p><br></p>
 </div>
 </div>
@@ -2141,9 +2152,9 @@ final &lt;- cbind(m3, montant |&gt; select(montant))</code></pre>
 <li><strong>Split comma separated values</strong></li>
 </ul>
 <pre class="r"><code># Split 
-unnested_bso &lt;- unnested_bso |&gt; mutate(journal_issns = strsplit(as.character(journal_issns), &quot;,&quot;)) |&gt; unnest(journal_issns)
+data &lt;- data |&gt; mutate(journal_issns = strsplit(as.character(journal_issns), &quot;,&quot;)) |&gt; unnest(journal_issns)
 # Unsplit
-unnested_bso &lt;- unnested_bso |&gt; mutate(journal_issns = paste0(unique(na.omit(journal_issns)), collapse = &quot;,&quot;))</code></pre>
+data &lt;- data |&gt; mutate(journal_issns = paste0(unique(na.omit(journal_issns)), collapse = &quot;,&quot;))</code></pre>
 <ul>
 <li><strong>Repeat row based on column number</strong></li>
 </ul>
@@ -2158,7 +2169,7 @@ sample(random, size = nrow(data), replace = TRUE, prob = c(1/2,3/5,2/5))</code><
 <div id="merge-join" class="section level2">
 <h2>Merge, join</h2>
 <ul>
-<li><strong>Merge 2 columns into 1</strong></li>
+<li><strong>Merge 2 or more columns into 1</strong></li>
 </ul>
 <pre class="r"><code>data &lt;- data |&gt; mutate(new_col = coalesce(col1,col2,col3))</code></pre>
 <ul>
@@ -2221,8 +2232,7 @@ nb_NA &lt;- as.data.frame(apply(is.na(data), 2, sum)) |&gt;
 <li><strong>Non NAs per group</strong></li>
 </ul>
 <pre class="r"><code>table &lt;- data |&gt; 
-    group_by(group) |&gt; 
-    summarise_all(list(~sum(!is.na(.))))</code></pre>
+    summarise_all(list(~sum(!is.na(.))), .by = group)</code></pre>
 <ul>
 <li><strong>Values frequency</strong></li>
 </ul>
@@ -2935,6 +2945,15 @@ column_defs &lt;- setNames(
   }),
   names(table)
 )</code></pre>
+<ul>
+<li><strong>Export reactable as HTML and JPG</strong></li>
+</ul>
+<pre class="r"><code># Export de la table
+library(htmlwidgets)
+library(webshot2)
+saveWidget(widget = table_rea, file = &quot;../mon_path/data.html&quot;, selfcontained = TRUE)
+webshot2::webshot(&quot;../mon_path/data.html&quot;, &quot;../mon_path/data.jpg&quot;, 
+                  vwidth = 1200, vheight = 600)</code></pre>
 <p><br></p>
 </div>
 </div>
@@ -2968,7 +2987,7 @@ saveWidget(map, file = &quot;ma_carte.html&quot;)</code></pre>
 <div id="r-markdown" class="section level2">
 <h2>R Markdown</h2>
 <ul>
-<li><strong>Footer, css, header files in other folder</strong></li>
+<li><strong>Footer, CSS, header files in other folder</strong></li>
 </ul>
 <pre class="r"><code>includes:
     in_header: !expr here::here(&quot;inst/rmarkdown/resources/header.html&quot;)</code></pre>
@@ -2982,7 +3001,8 @@ htmltools::img(src = &quot;lien/vers/mon/image&quot;,
 <ul>
 <li><strong>Output file into ‘reports’ folder</strong></li>
 </ul>
-<pre class="r"><code>knit: (
+<pre class="r"><code># Mettre dans le header du document RMD
+knit: (
   function(inputFile, encoding) { 
     rmarkdown::render(inputFile, params = &quot;ask&quot;,  
       encoding    = encoding,
@@ -2991,7 +3011,8 @@ htmltools::img(src = &quot;lien/vers/mon/image&quot;,
 <ul>
 <li><strong>Justify text</strong></li>
 </ul>
-<pre class="r"><code>&lt;style&gt;
+<pre class="r"><code># Mettre en corps de texte du RMD où dans un fichier CSS à part
+&lt;style&gt;
 body {
 text-align: justify
 }
@@ -3060,7 +3081,7 @@ trackdown::download_file(file = &quot;scripts/Rapport_final.Rmd&quot;, gfile = &
 <li><strong>Insert and center image in Rmd page</strong></li>
 </ul>
 <pre class="r"><code>&lt;p align=&quot;center&quot;&gt;
- &lt;img src=&quot;../figures/graĥique.png&quot; width = &quot;110&quot;&gt;
+ &lt;img src=&quot;../figures/graphique.png&quot; width = &quot;110&quot;&gt;
 &lt;/p&gt;</code></pre>
 <ul>
 <li><strong>Embed HTML in Rmd page</strong></li>
@@ -3077,8 +3098,8 @@ trackdown::download_file(file = &quot;scripts/Rapport_final.Rmd&quot;, gfile = &
 header. Ouvrir dans un browser pour voir le résultat.</em></strong></p>
 <p><em>Autre solution :</em></p>
 <pre class="r"><code>knitr::include_url(glue(&#39;../figures/tableau_global/tableau_global_{name_salarie}.html&#39;))</code></pre>
-<p><strong><em>Mettre ça dans <code>style</code> en haut du rmd pour
-enlever la bordure noire.</em></strong></p>
+<p><strong><em>Mettre ça dans <code>&lt;style&gt;</code> en corps de
+texte du RMD pour enlever la bordure noire.</em></strong></p>
 <pre class="r"><code>iframe {
   border: none;
 }</code></pre>
@@ -3126,19 +3147,25 @@ git stash push --include-untracked # supprimer tous les changements locaux (pull
 <li><strong>Install package from github (not from CRAN)</strong></li>
 </ul>
 <ol style="list-style-type: decimal">
-<li><p>Télécharger le repo contenant le package via l’URL : <em><a href="https://github.com/account/reponame/archive/branchname.tar.gz" class="uri">https://github.com/account/reponame/archive/branchname.tar.gz</a></em></p></li>
-<li><p>Le sauvegarder dans un dossier du repo de travail actuel</p></li>
-<li><p>L’installer via cette commande à ajouter au .yaml de l’action
+<li>Télécharger le repo contenant le package via l’URL : <em><a href="https://github.com/account/reponame/archive/branchname.tar.gz" class="uri">https://github.com/account/reponame/archive/branchname.tar.gz</a></em></li>
+<li>Le sauvegarder dans un dossier du repo de travail actuel</li>
+<li>L’installer via cette commande à ajouter au .yaml de l’action
 (<strong><em>name: install icons package</em></strong>, sans oublier
-d’installer le package <code>remotes</code>)</p>
-<ul>
-<li><p>uses: <a href="mailto:r-lib/actions/setup-r-dependencies@v2" class="email">r-lib/actions/setup-r-dependencies@v2</a> with:
-cache-version: 2 packages: any::knitr any::tidyverse any::flexdashboard
-any::remotes</p></li>
-<li><p>name: install icons package run: | Rscript -e
-“remotes::install_url(‘<a href="https://raw.githubusercontent.com/datactivist/plans_de_charge/main/.github/workflows/master.tar.gz" class="uri">https://raw.githubusercontent.com/datactivist/plans_de_charge/main/.github/workflows/master.tar.gz</a>’)”</p></li>
-</ul></li>
+d’installer le package <code>remotes</code>)</li>
 </ol>
+<pre class="r"><code># Intégrer dans .github/workflows/render-document.yaml
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          cache-version: 2
+          packages:
+            any::knitr
+            any::tidyverse
+            any::flexdashboard
+            any::remotes
+            
+      - name: install icons package
+        run: |
+          Rscript -e &quot;remotes::install_url(&#39;https://raw.githubusercontent.com/datactivist/plans_de_charge/main/.github/workflows/master.tar.gz&#39;)&quot;</code></pre>
 <p><br></p>
 </div>
 </div>
@@ -3150,7 +3177,7 @@ any::remotes</p></li>
 <ul>
 <li><strong>Bash commands in R</strong></li>
 </ul>
-<pre class="r"><code>system(glue(&quot;cat {in_dir}/study-apc_{year}.jsonl | jq -c &#39;{{doi, year, bso_classification, hal_id}}&#39; | jq --slurp &gt; {out_dir}/unnested_bso_{year}.json&quot;))</code></pre>
+<pre class="r"><code>system(glue(&quot;cat {in_dir}/raw_data_{year}.jsonl | jq -c &#39;{{doi, year, bso_classification, hal_id}}&#39; | jq --slurp &gt; {out_dir}/unnested_data_{year}.json&quot;))</code></pre>
 <ul>
 <li><strong>Parallel execution command</strong></li>
 </ul>
@@ -3163,7 +3190,7 @@ numCores &lt;- 2
 registerDoParallel(numCores)
 
 foreach (year = years) %dopar% {
-  subjson_bso(year)
+  ma_fonction(year)
 }
 
 stopImplicitCluster()</code></pre>
@@ -3243,7 +3270,27 @@ table_recap_stat &lt;- rbind(lapply(ls(pattern=&quot;^all_stat_&quot;), function
 être mise comme argument attendu, il faut l’ajouter comme argument de
 fonction.</p>
 <ul>
-<li><strong>Automatic tab for elements of a list</strong></li>
+<li><strong>Get statistics within function</strong></li>
+</ul>
+<pre class="r"><code>inter_categories &lt;- function(data, variable){
+    # Calcul
+    min_val &lt;- min(data[[variable]], na.rm = TRUE) #data[[variable]] pour accéder à la variable dans un df
+    q1 &lt;- quantile(data[[variable]], 0.25, na.rm = TRUE)
+    med &lt;- median(data[[variable]], na.rm = TRUE)
+    q3 &lt;- quantile(data[[variable]], 0.75, na.rm = TRUE)
+    max_val &lt;- max(data[[variable]], na.rm = TRUE)
+    
+    # Assignation à l&#39;environnement global
+    assign(&quot;min_val&quot;, min_val, envir = .GlobalEnv) #nom d&#39;objet &quot;min_val&quot; et pas &quot;min&quot; pour pas crééer de conflit avec le nom de fonction
+    assign(&quot;q1&quot;, q1, envir = .GlobalEnv)
+    assign(&quot;med&quot;, med, envir = .GlobalEnv)
+    assign(&quot;q3&quot;, q3, envir = .GlobalEnv)
+    assign(&quot;max_val&quot;, max_val, envir = .GlobalEnv)
+}
+inter_categories(table, &quot;Densité (habitant par m²)&quot;) #nom de variable entre guillemets et pas backticks sinon est considéré comme objet à part et non une variable du jeu de données</code></pre>
+<ul>
+<li><strong>Automatic tab for elements of a list in a flexdashboard
+document</strong></li>
 </ul>
 <pre class="r"><code># voir script ici [repo privé] : https://github.com/datactivist/plans_de_charge/blob/main/scripts/tableau_de_bord.Rmd
 # ATTENTION : ne pas mettre de caractères spéciaux (&amp;.) dans les noms data-navmenu=&quot;&quot;</code></pre>
