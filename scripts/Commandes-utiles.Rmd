@@ -260,6 +260,19 @@ data <- data |> rename_at(vars(-Name, -State), ~ paste0(., '_2017'))
 data <- data |> select(indicateurs, order(colnames(data)))
 ```
 
++ **Order categorical column based on other categorical col**
+
+```{r}
+# Dans le cas où les niveaux changent, ex : "3 à 5 fois par semaine (12 commerces)"
+table |> 
+  mutate(discu_nb_commerces = factor(discu_nb_commerces, 
+                                     levels = table |> 
+                                       distinct(`Avez-vous l'habitude de discuter avec vos clients en dehors du cadre strict de la vente ? (exemple : prendre des nouvelles personnelles)`, discu_nb_commerces) %>%
+                                       arrange(factor(`Avez-vous l'habitude de discuter avec vos clients en dehors du cadre strict de la vente ? (exemple : prendre des nouvelles personnelles)`, 
+                                                      levels = c("Jamais", "Très rarement (moins d'une fois par mois)", "Rarement (1 à 2 fois par mois)", "Ponctuellement (1 à 2 fois par semaine)", "Régulièrement (3 à 5 fois par semaine)", "Très régulièrement (plusieurs fois par jour)"))) |> 
+                                       pull(discu_nb_commerces)))
+```
+
 <br>
 
 ### NAs
@@ -438,6 +451,9 @@ data <- data |> mutate(age = round(as.numeric(difftime(Sys.Date(), dateOfBirth, 
 # Valeurs d'une colonne
 data <- data |> mutate(col = str_replace_all(col, c("pattern1 | pattern2" = "replacement")))
 
+# Attention à escape les parenthèses pour que le remplacement fonctionne
+data <- data |> mutate(col = str_replace_all(col, c("string avec \\(parenthèses\\)" = "replacement")))
+
 # Valeurs du df entier
 data <- data |> mutate_all(function(x) gsub("pattern1 | pattern2", "replacement", x))
 ```
@@ -496,6 +512,13 @@ data <- data |> mutate(col = gsub("\\W*\\b\\w\\b\\W*", " ", string))
 
 ```{r}
 data <- data |> mutate(col = trimws(string, which = "left"))
+```
+
++ **Remove blank spaces at the begining and at the end**
+
+```{r}
+data <- data |> mutate(col = str_squish(col)) #specific column
+data <- data |> mutate_all(~str_squish(.)) #all character columns
 ```
 
 + **Remove first digit if 0**
@@ -722,6 +745,15 @@ data |>
            .by = id)
 ```
 
++ **Filter on first and second minimum values by group**
+
+```{r}
+data |> 
+    filter((degre_etude == min(degre_etude) | degre_etude == min(degre_etude[degre_etude != min(degre_etude)])) |
+           (degre_etude == min(degre_etude) | is.na(degre_etude)), 
+         .by = id)
+```
+
 
 
 
@@ -764,11 +796,20 @@ data <- data |> mutate(journal_issns = strsplit(as.character(journal_issns), ","
 data <- data |> mutate(journal_issns = paste0(unique(na.omit(journal_issns)), collapse = ","))
 ```
 
-+ **Repeat row based on column number**
++ **Repeat row based on 1 column number**
 
 ```{r}
 data |> uncount(x)
 ```
+
++ **Repeat row based on several column number**
+
+```{r}
+data.frame(col1 = c(0, 167, 73),
+           col2 = c(62, 0, 73)) |> 
+    slice(rep(1:n(), times = c(col2[1], col1[2], col2[3])))
+```
+
 
 
 + **Random values with specific probability**
@@ -868,7 +909,9 @@ nb_NA <- as.data.frame(apply(is.na(data), 2, sum)) |>
                        rename(`nombre de NA` = `apply(is.na(data), 2, sum)`) |>
                        mutate(pourcentage = `nombre de NA`/nrow(data)*100) |> 
                        mutate(pourcentage = round(pourcentage, 2)) |> 
-                       arrange(desc(pourcentage))
+                       arrange(desc(pourcentage)) |> 
+    rownames_to_column() |> 
+    rename(variable = rowname)
 ```
 
 + **Non NAs per group**
@@ -1063,11 +1106,11 @@ theme(panel.grid.major.x = ggplot2::element_line(color = "#cbcbcb"),
   geom_text_wordcloud(family = "Montserrat") +
     
 # Géométrie additionnelle
-  geom_text(aes(y = 1, label = title_projet, hjust = "bottom"), #aligner geom_text à gauche avec coord_flip
+  geom_text(aes(y = 1, label = title_projet), hjust = "bottom", #aligner geom_text à gauche avec coord_flip
             fontface = "italic", size = 5, hjust = 0) +
-  geom_label(aes(y = 1, label = title_projet, hjust = "bottom"), fontface = "italic", size = 2.6,
+  geom_label(aes(y = 1, label = title_projet), hjust = "bottom", fontface = "italic", size = 2.6,
              fill = "white", label.size = NA, hjust = 0) + #white background and remove black borders à la fin sinon marche pas !
-  geom_label(aes(y = 1, label = title_projet, hjust = "bottom", group = groupes), fontface = "italic", size = 2.6,
+  geom_label(aes(y = 1, label = title_projet), hjust = "bottom", fontface = "italic", size = 2.6,
              fill = "white", label.size = NA, position = position_dodge(width = .9), hjust = 0) + #pour double barres plot (dodge)
   stat_count(geom = "text", colour = "white", size = 4,
              aes(label = ..count.., y = ..count..+.7), #y pour positionnement juste au dessus des barres
@@ -1117,8 +1160,7 @@ ggplot(data) +
 
 ```{r}
   theme_classic() +
-  theme(legend.position = "bottom",
-        panel.grid.major.y = ggplot2::element_line(color = "#cbcbcb"), #lignes horizontales fond graphique en gris (BBC thème)
+  theme(panel.grid.major.y = ggplot2::element_line(color = "#cbcbcb"), #lignes horizontales fond graphique en gris (BBC thème)
         strip.text.x = element_text(face = "bold"), #label des facettes
         axis.title.x = element_text(margin = margin(t = 5, r = 0, b = 5, l = 0)), #augmenter marges entre texte et labels des axes
         plot.title = element_textbox_simple(hjust = 1), #hjust: titre aligné à droite, element_textbox_simple line break auto titre
@@ -1149,6 +1191,9 @@ ggplot(data) +
                              title = "titre légende"), # titre légende
         lwd = "none",  #ne pas afficher une légende en particulier
         col = guide_legend(title = "", reverse = TRUE, override.aes = list(lwd = 2))) + #lwd = 2 pour ligne plus épaisse et plus visible dans la légende
+
+# Deux légendes sur un même graph, affichées l'une sous l'autre
+theme(legend.box = "vertical", legend.box.just = "left")
 ```
 
 #### Colors
@@ -1484,6 +1529,16 @@ proj_loin |>
                            "<br>• ", format(as.integer(proj_loin$votes, 0), nsmall = 1, big.mark = "."), ifelse(proj_loin$votes <= 1, " vote", " votes"))) |> 
   addProviderTiles(provider = "Esri.WorldGrayCanvas")
 # all providers : http://leaflet-extras.github.io/leaflet-providers/preview/index.html
+
+    # Carte avec les points qui se précisent au fur et à mesure du zoom
+test |> 
+  leaflet() |>
+  addTiles() |> 
+  setView(lng = 3, lat = 47, zoom = 4.8) |> 
+  addMarkers(lng = test$long, lat = test$lat, 
+             label = test$Concessionnaires_Dénominationsociale,
+             clusterOptions = markerClusterOptions()) |> #clusterOptions fait cet effet
+  addProviderTiles(provider = "Esri.WorldGrayCanvas")
 ```
 
 + **Legend out of graph**
@@ -1535,6 +1590,26 @@ table |>
 ```
 
 
++ **Treemap**
+
+
+```{r}
+library(treemap)
+library(treemapify)
+table |> 
+  filter(row_number() <= 10) |> 
+  ggplot() +
+      geom_treemap(aes(area = effectif_couple_spe, fill = couple_spe), col = "white", size = 4) +
+      geom_treemap_text(aes(area = effectif_couple_spe, fill = couple_spe, 
+                            label = paste0(couple_spe, "\n(", percent, "%)")),
+                        colour = "white", place = "centre", size = 15, grow = TRUE) +
+      scale_fill_manual(values = c("#345E68", "#FEDEA0", "#B7C2A5", "#023743","#7A9BB1", "#B8AA75", "#7B8598", "#345B48", "#476F84", "#D0BA7C")) +
+      labs(title = "Les 10 principales spécialités au BAC choisies par les étudiants d'Ile-de-France") +
+      custom_theme() +
+      theme(legend.position = "none")
+```
+
+
 <br>
 
 ## Tables
@@ -1561,7 +1636,7 @@ data |>
 ### `DT::datatable()`
 
 ```{r}
-datatable(dtable)
+datatable(data, options = list(pageLength = 5, scrollX = TRUE))
 ```
 
 <br>
