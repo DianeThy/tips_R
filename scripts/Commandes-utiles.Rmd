@@ -66,6 +66,11 @@ rbindlist_fread <- function(path, pattern = "*.csv") {
     data.table::rbindlist(lapply(files, function(x) fread(x)))
 }
 data <- rbindlist_fread("mon/super/path")
+
+# Autre technique
+fichiers <- list.files(path = "./data/out/datas/", pattern = "liste_urls_valides_.*\\.csv", full.names = TRUE)
+test <- lapply(fichiers, read_csv)
+donnees_combinees <- do.call(rbind, test)
 ```
 
 + **ZIP**
@@ -83,6 +88,16 @@ data <- read_delim("dossier_complet.csv", ";", trim_ws = TRUE)
 library(googlesheets4) 
 data <- read_sheet("lien/vers/le/google/sheets")
 # Attention : ne marche que si le tableau est en format GoogleSheet et pas Excel déposé sur Drive !!
+```
+
++ **Geo JSON**
+
+```{r}
+library(geojsonR)
+library(httr)
+temp_file <- tempfile(fileext = ".geojson")
+GET("https://public.opendatasoft.com/api/explore/v2.1/catalog/datasets/georef-france-commune/exports/geojson?lang=fr&refine=reg_name%3A%22Corse%22&facet=facet(name%3D%22reg_name%22%2C%20disjunctive%3Dtrue)&timezone=Europe%2FBerlin", write_disk(temp_file, overwrite = TRUE))
+communes_contours_geo <- st_read(temp_file, quiet = TRUE)
 ```
 
 
@@ -277,7 +292,7 @@ table |>
 
 ### NAs
 
-+ **Fill NAs with previous values by group**
++ **Fill NAs with previous values by group (repeat existing values)**
 
 ```{r}
 data <- data |> 
@@ -640,10 +655,22 @@ str_extract("string bla [da]", "^.*\\[") #crochet inclu dans l'extraction
 str_extract(string, "^[^(]+")
 ```
 
++ **Extract characters before ","**
+
+```{r}
+str_extract(string, "^[^,]+")
+```
+
 + **Extract characters between parenthesis**
 
 ```{r}
 str_extract(string, "\\(.*?\\)")
+```
+
++ **Remove characters between parenthesis**
+
+```{r}
+str_remove(string,"\\([^)]*\\)")
 ```
 
 + **Extract characters after blankspace**
@@ -664,6 +691,15 @@ sapply(str_extract_all("+3214FSEtest!! 1", "[\\d+]+"), function(x) paste(x,colla
 # Reformater code postal mal renseigné (avec des espaces entre les 5 digits)
 # Exemple : "49, avenue Du grau du rieu Marseillan Occitanie 34 340 France"
 mutate(adresses = str_replace_all(adresses, "\\b(\\d{2}) (\\d{3})\\b", "\\1\\2"))
+```
+
++ **Extract domain name in URL**
+
+```{r}
+# Nom de domaine
+mutate(domaine_url = str_extract(url, "(?<=^https?://)[^/]+"))
+# Nom de domaine niveau 2 (jusqu'au 2è slash)
+mutate(domaine_url2 = str_extract(url, "(?<=^https?://)[^/]+/[^/]+"))
 ```
 
 
@@ -702,6 +738,20 @@ proj_comm_date <- cbind(comm1.1, comm2) |> ungroup() |>
     rename(date = publishedAt) |> mutate(type = "commentaires")
 ```
 
+
++ **List to characters separated with comma for column in a dataframe**
+
+```{r}
+data |> 
+    mutate(ma_col = sapply(ma_col, function(x) paste(unlist(x), collapse = ", ")))
+```
+
++ **All list columns to characters**
+
+```{r}
+data |> 
+    mutate(across(where(is.list), ~ sapply(.x, function(y) paste(unlist(y), collapse = ", "))))
+```
 
 
 
@@ -755,7 +805,17 @@ data |>
 ```
 
 
+<br>
 
+## Select
+
++ **Possibly select columns based on other df's columns**
+
+
+```{r}
+data |> 
+    select(any_of(names(raw_data)))
+```
 
 
 <br>
@@ -877,7 +937,7 @@ semi_join(df1, df2)
 identical(data$id1, data$id2)
 ```
 
-+ **Increase total system memory R session**
++ **Increase total system memory R session (RAM)**
 
 ```{r}
 library(unix) #pour linux
@@ -885,6 +945,11 @@ rlimit_as(1e20)  #increases to ~12GB
 ```
 
 
++ **Sample random rows of a df**
+
+```{r}
+df[sample(nrow(df), 3), ] #pour récupérer 3 lignes
+```
 
 
 <br>
@@ -969,6 +1034,21 @@ data |> mutate(n_moyen_stats = round(weighted.mean(n_repondants, PONDFIN_logit),
                n_median_pondere = weighted_median(n_repondants, PONDFIN_logit)) #médiane
 ```
 
++ **Geocode and reverse geocode**
+
+```{r}
+# Geocoder (obtenir longitude et latitude à partir du code postal)
+data_geoloc <- data |> 
+    select(zip_code) |> 
+    mutate(pays = "France") |> 
+    na.omit() |> 
+    geocode(postalcode = zip_code, country = pays, method = 'osm', lat = latitude , long = longitude)
+
+# Reverse geocoder (obtenir l'adresse à partir de longitude / latitude)
+data <- data_geoloc |> 
+  reverse_geocode(lat = latitude, long = longitude, method = 'osm', full_results = TRUE)
+```
+
 
 
 
@@ -1028,6 +1108,20 @@ data |>
   ggplot(aes(y = n)) +
   geom_col(aes(x = cycle, fill = rowname, alpha = cycle != "Catégorie"), color = "white", position = "stack", width = 0.7) +
   scale_alpha_manual(values=c(1, .4))
+```
+
++ **Highlight several bars on barplot with alpha**
+
+```{r}
+data_stat |> 
+    mutate(a_surligner = case_when(type == "votes" ~ "1", type == "questionnaires"~ "1", .default = "0")) |> ungroup() |> 
+    type_contrib("Les jeunes plébiscitent les outils de consultation vs. les outils de débat", "Fig. 31", 60, "") +
+    geom_bar(aes(y=n, x=type, fill = a_surligner), position="dodge", stat="identity", width=.6) +
+    geom_bar(aes(y=n_ref, x=type, linetype = "proportions de l'échantillon global"), 
+             position="dodge", stat="identity", width=.6, color = "#666666", fill = NA, size = 1) +
+    geom_label(aes(x = type, y = n+60, label = ecart), size = 5, fill = "white", label.size = NA) +
+    scale_fill_manual(values = c("1" = "#83b4d1", "0" = "#cde1ec")) +
+    guides(fill = "none")
 ```
 
 + **Custom_theme() BBC**
@@ -1107,7 +1201,7 @@ theme(panel.grid.major.x = ggplot2::element_line(color = "#cbcbcb"),
     
 # Géométrie additionnelle
   geom_text(aes(y = 1, label = title_projet), hjust = "bottom", #aligner geom_text à gauche avec coord_flip
-            fontface = "italic", size = 5, hjust = 0) +
+            fontface = "italic", size = 5, hjust = 0, lineheight = 0.8) + #lineheight pour régler l'interligne quand label sur plusieurs lignes
   geom_label(aes(y = 1, label = title_projet), hjust = "bottom", fontface = "italic", size = 2.6,
              fill = "white", label.size = NA, hjust = 0) + #white background and remove black borders à la fin sinon marche pas !
   geom_label(aes(y = 1, label = title_projet), hjust = "bottom", fontface = "italic", size = 2.6,
@@ -1237,6 +1331,43 @@ iris |>
       guides(fill = guide_legend(title = ""))
 ```
 
++ **Pie chart**
+
+```{r}
+# Table
+table <- iris |> 
+  summarise(nb= n(), .by = species) |> na.omit() |> 
+  mutate(Pourcentage = round(nb / sum(nb) * 100, 0)) |> 
+  mutate(ypos = cumsum(nb) - .5 * nb)
+
+# Dataviz
+table |> 
+    ggplot(aes(x = "", y = nb, fill = species)) +  
+      geom_bar(stat = "identity", width = 1, color = "white", size = 2) +
+      coord_polar("y") +
+      #scale_fill_manual(values = c("Oui" = "#3182bd", "Non" = "#9ecae1")) +
+      labs(title = str_wrap("Répartition de l'échantillon", width = 35)) +
+      theme_classic() + 
+      theme(legend.position = "top",
+            strip.text.x = element_text(size = 12, face = "bold"),
+            strip.background = element_blank(),
+            axis.title = element_blank(),
+            axis.ticks = element_blank(),
+            axis.line = element_blank(),
+            axis.text = element_blank(),
+            legend.text = ggplot2::element_text(size = 18, color = "#222222"), 
+            legend.title = ggplot2::element_text(size = 18, color = "#222222"), 
+            text = element_text(family = "Montserrat", size = 12),
+            plot.title = ggplot2::element_text(size = 19, face = "bold", color = "#222222"), 
+            plot.caption = ggplot2::element_text(face = "italic", size = 18, 
+                                                 color = "#666666", margin = ggplot2::margin(9, 0, 9, 0)), 
+            plot.title.position = "plot", 
+            plot.caption.position = "plot") +
+      guides(fill = guide_legend(reverse = T, title = "")) +
+      geom_text(aes(y = ypos, x = 2, label = paste(round(Pourcentage,0), "%", sep="")), 
+                color = "#333333", size=5, check_overlap = T)
+```
+
 + **Histogram**
 
 ```{r eval = T, out.width = '60%', fig.align = 'center'}
@@ -1283,6 +1414,22 @@ ggplot(data = table_femmes) +
   geom_vline(xintercept = .5, linetype = 2, col = "#666666", linewidth = .7) +
   custom_theme() +
   theme(plot.title = ggplot2::element_text(size = 18))
+```
+
++ **Barplot ordering bars with geom_bar()**
+
+```{r}
+iris |> 
+    filter(sepal_width >= 3) |> 
+    ggplot() +
+      aes(x = reorder(species, species,
+                         function(x)+length(x))) + #+ pour descendant, - pour ascendant
+      geom_bar(fill = "#3182BD") +
+      coord_flip() +
+      theme_minimal() +
+      theme(panel.grid.major.x = ggplot2::element_line(color = "#cbcbcb"),
+            panel.grid.major.y = ggplot2::element_blank(),
+            axis.title.y = element_blank())
 ```
 
 + **Pyramid**
@@ -1493,10 +1640,12 @@ test |>
               hjust = ifelse(test$ecart >= 0, 0, 1))
 ```
 
-+ **Cartography**
++ **Cartography leaflet (points)**
 
 ```{r}
-# Graph
+library(leaflet)
+library(htmltools)
+
     # titre
 tag.map.title <- tags$style(HTML("
   .leaflet-control.map-title { 
@@ -1539,7 +1688,69 @@ test |>
              label = test$Concessionnaires_Dénominationsociale,
              clusterOptions = markerClusterOptions()) |> #clusterOptions fait cet effet
   addProviderTiles(provider = "Esri.WorldGrayCanvas")
+saveWidget(m, file="m.html")
+    
 ```
+
++ **Cartography mapview (choropleth)**
+
+```{r}
+# Chargement des données
+library(geojsonR)
+library(httr)
+temp_file <- tempfile(fileext = ".geojson")
+GET("https://public.opendatasoft.com/api/explore/v2.1/catalog/datasets/georef-france-commune/exports/geojson?lang=fr&refine=reg_name%3A%22Corse%22&facet=facet(name%3D%22reg_name%22%2C%20disjunctive%3Dtrue)&timezone=Europe%2FBerlin", write_disk(temp_file, overwrite = TRUE))
+communes_contours_geo <- st_read(temp_file, quiet = TRUE)
+
+# Carto
+library(mapview)
+library(leafpop)
+library(sf)
+communes_contours_geo |> 
+    select(dep_name, geometry) |> 
+    mutate(dep_name = as.character(dep_name)) |> # ÉTAPE IMPORTANTE SINON "ERROR NON-NUMERIC ARG"
+    na.omit() |> 
+    st_as_sf() |> 
+    mapview(zcol = "dep_name",
+            layer.name = "Communes de Corse",
+            legend = TRUE, 
+            basemaps.color.shuffle = FALSE, map.types = "CartoDB.Positron",
+            col.regions = c("Corse-du-Sud" = "#b5dbfb", "Haute-Corse" = "#1d82df"),
+            popup = popupTable(communes_contours_geo, zcol = c("dep_name")))
+```
+
++ **Combinaison points and choropleth carto**
+
+```{r}
+library(mapview)
+library(leafpop)
+library(leaflet)
+map <- mapview(data1$geometry, 
+        alpha.regions = .5, 
+        col.regions = "#CC0000", #fill color zones géo
+        lwd = 2, #épaisseur bordure zones géo
+        layer.name = "Territoires d'étude", #nom s'affichant en bas à droite
+        label = data1$com_name, 
+        popup = popupTable(data1, zcol = c("com_name")),
+        legend = TRUE) +
+mapview(st_as_sf(na.omit(data_geoloc2), coords = c("longitude", "latitude"), crs = 4326),
+        layer.name = "Commerces répondants",
+        col.regions = "#3182BD", 
+        alpha.regions = .5,
+        cex = "n", 
+        popup = data_geoloc2$nb_commerces, #texte quand on clique sur un point
+        label = data_geoloc2$nb_commerces, #texte au survol de la souris
+        legend = FALSE)
+
+# Conversion en objet leaflet pour ajouter un titre
+leaflet_map <- map@map %>% 
+  addControl(
+    html = "<h2 style='text-align:center; color: darkblue;'>Répartition géographique des commerces répondants</h2>",
+    position = "topright"
+  )
+leaflet_map
+```
+
 
 + **Legend out of graph**
 
@@ -1610,6 +1821,38 @@ table |>
 ```
 
 
++ **Customized lolipop chart**
+
+```{r}
+library(ggtext)
+table |> 
+    mutate(var = fct_reorder(var, n)) |> 
+    ggplot( aes(x=var, y=n)) +
+    geom_segment(aes(xend=var, yend=0), 
+                 color=ifelse(table_collab_treemap$var == "Associations de quartier", "#3182BD", "grey"), 
+                 size=ifelse(table_collab_treemap$var == "Associations de quartier", 1.3, 0.7)) +
+    geom_point(color=ifelse(table_collab_treemap$var == "Associations de quartier", "#3182BD", "grey"), 
+               size=ifelse(table_collab_treemap$var == "Associations de quartier", 5, 2)) +
+    theme_bw() +
+    coord_flip() +
+    labs(title = "Les <span style='color: #3182BD'>associations de quartier</span> sont les principales <br>associations avec lesquelles les commerçants <br>s'associent", #str_wrap() ne marche plus avec le element_markdown()
+         subtitle = "Collaborations des commerçants avec des associations \nlocales",
+         y = "Nombre de commerces") +
+    scale_x_discrete(labels = function(x) stringr::str_wrap(x, width = 30)) +
+    custom_theme() +
+    theme(legend.position = "none", 
+          axis.title.y = element_blank(),
+          panel.grid.major.x = ggplot2::element_line(color = "#cbcbcb"),
+          panel.grid.major.y = ggplot2::element_blank(),
+          plot.title = element_markdown()) +
+    ggplot2::annotate("text",
+             x = grep("Associations de quartier", table_collab_treemap$var),
+             y = table_collab_treemap$n[which(table_collab_treemap$var=="Associations de quartier")]*1.1,
+             label = paste0(round(percent_collab_quartier$percent, 0), "% des collaborations \nse font avec des \nassociations de quartier"),
+             color = "#3182BD", size=4 , angle=0, fontface="bold", hjust=0)
+```
+
+
 <br>
 
 ## Tables
@@ -1620,15 +1863,101 @@ table |>
 library(gt)
 library(gtExtras)
 data |> 
-  gt() |>
-  gt_theme_nytimes() |> 
-  tab_header(title = "Mon titre") |>
-  tab_style(style = list(cell_text(weight = "bold")), #en gras
-    locations = cells_body(columns = ma_col)) |> 
-  cols_align(align = "center", columns = everything()) |> 
-  cols_align(align = "left", columns = c(col1, col2)) |> 
-  gt_plt_bar_pct(`% temps`, scaled = TRUE, labels=TRUE, decimals = 0, #attention à remplacer les NA par 0 sinon erreur
-           font_size = "14px", fill = "#173541", height = 20)
+    # Transformation de la colonne externalité pour mettre le picto
+    mutate(` ` = case_match(Externalité,
+                                    "Lien social" ~ "images/lien_social.png",
+                                    "Solidarités" ~ "images/solidarites.png",
+                                    "Vie de quartier" ~ "images/vie_quartier.png",
+                                    "Santé et sécurité" ~ "images/sante_securite.png",
+                                    "Environnement" ~ "images/environnement.png",
+                                    "Espace public" ~ "images/espace_public.png")) |> 
+    relocate(` `) |> 
+    # Ordre des lignes et groupes
+    mutate(Externalité = factor(Externalité, 
+                                levels = c("Lien social","Solidarités","Vie de quartier","Santé et sécurité","Environnement","Espace public"))) |> 
+    mutate(ordre = ifelse(Indicateur == "% de commerces combinant les 3 externalités", 2, 1)) |> 
+    arrange(Externalité, ordre) |>  # Tri par externalité, puis indicateur
+    select(-ordre) |> 
+    # GT TABLE
+    gt(groupname_col = "Externalité") |> 
+    # Titres
+    tab_header(title = md("**Comparaison territoriales des externalités positives du commerce**")) |>
+    tab_source_note(source_note = md("*Données d'une enquête diffusée d'avril à novembre 2024 auprès de **324 commerces** de France entière.*")) |> 
+    # Rassemblement des chiffres par territoires
+    tab_spanner(label = md("**Paris**"), columns = c(`Nombre de réponses`, `%`)) |> 
+    tab_spanner(label = md("**St Ouen**"), columns = c(` Nombre de réponses`, ` %`)) |> 
+    tab_spanner(label = md("**Rouen**"), columns = c(`Nombre de réponses `, `% `)) |> 
+    # Stype de la table
+    tab_style(style = list(cell_text(weight = "lighter")), 
+              locations = cells_body(columns = Indicateur)) |>  
+    # Couleur des indicateurs récapitulatifs
+    tab_style(style = list(cell_fill(color = "lightgrey", alpha = 1)),
+              locations = cells_body(columns = everything(), 
+                                     rows = Indicateur == "% de commerces combinant les 3 externalités")) |> 
+    # Intégration des pictos externalités
+    text_transform(locations = cells_body(columns = " "),
+                   fn = function(x) {
+                      local_image(
+                        filename = x,
+                        height = 27)
+                    }) |> 
+    cols_width(` ` ~ "5%") |> 
+    # % en barres
+    gt_plt_bar_pct(`%`, scaled = TRUE, labels=TRUE, decimals = 0, 
+                   font_size = "14px", fill = "#343333", height = 20) |> 
+    gt_plt_bar_pct(` %`, scaled = TRUE, labels=TRUE, decimals = 0, 
+                   font_size = "14px", fill = "#343333", height = 20) |> 
+    gt_plt_bar_pct(`% `, scaled = TRUE, labels=TRUE, decimals = 0, 
+                   font_size = "14px", fill = "#343333", height = 20) |> 
+    # couleur des noms de groupes (familles d'externalités)
+    tab_style(style = list(cell_fill(color = "#B4B1B1", alpha = .4),
+                           cell_text(weight = "bold")),
+              locations = cells_row_groups(groups = "Lien social")) |> 
+    tab_style(style = list(cell_fill(color = "#004654", alpha = .4),
+                           cell_text(weight = "bold")),
+              locations = cells_row_groups(groups = "Solidarités")) |> 
+    tab_style(style = list(cell_fill(color = "#0097B2", alpha = .4),
+                           cell_text(weight = "bold")),
+              locations = cells_row_groups(groups = "Vie de quartier")) |> 
+    tab_style(style = list(cell_fill(color = "#00A589", alpha = .4),
+                           cell_text(weight = "bold")),
+              locations = cells_row_groups(groups = "Santé et sécurité")) |>
+    tab_style(style = list(cell_fill(color = "#E1B441", alpha = .4),
+                           cell_text(weight = "bold")),
+              locations = cells_row_groups(groups = "Environnement")) |>
+    tab_style(style = list(cell_fill(color = "#FF5757", alpha = .4),
+                           cell_text(weight = "bold")),
+              locations = cells_row_groups(groups = "Espace public")) |> 
+    tab_style(style = list(cell_borders(sides = c("t", "b"), color = "white", weight = px(2))),
+              locations = cells_row_groups()) |> 
+    # centrage des colonnes
+    cols_align(align = "center", columns = c(`Nombre de réponses`, `%`, ` Nombre de réponses`, ` %`, `Nombre de réponses `, `% `)) |> 
+    # retirer la ligne horizontale au-dessus du titre
+    tab_options(table.border.top.style = "none", 
+                table.border.top.width = px(0)) |>    
+    # table dans une boxe avec barre de défilement verticale
+    tab_options(table.width = "100%",         # Largeur de la table
+                container.overflow.x = "auto", # Scroll horizontal si nécessaire
+                container.overflow.y = "auto", # Scroll vertical si nécessaire
+                container.height = px(600)) |>     # Hauteur fixe avec défilement vertical
+    # fixe les noms de colonnes et titre 
+    opt_css(css = "
+      /* Fixer le titre */
+      .gt_title, .gt_subtitle {
+        position: sticky;
+        top: 0; 
+        background-color: #f9f9f9; /* Couleur de fond pour le titre */
+        z-index: 2;               /* Met le titre au-dessus */
+        padding: 5px;             /* Ajoute un peu de marge interne */
+      }
+      
+      /* Fixer les noms des colonnes */
+      thead th {
+        position: sticky;
+        top: 30px;                /* Ajuste en fonction de la hauteur du titre */
+        background-color: #ffffff; /* Couleur de fond pour l'en-tête */
+        z-index: 1;               /* Met les noms de colonnes devant les lignes */
+      }")
 ```
 
 <br>
@@ -1830,12 +2159,19 @@ knit: (
 + **Justify text**
 
 ```{r}
-# Mettre en corps de texte du RMD où dans un fichier CSS à part
+# Mettre en corps de texte du RMD ou dans un fichier CSS à part
 <style>
 body {
 text-align: justify
 }
 </style> 
+```
+
++ **Change font, color and indent text**
+
+```{r}
+# Mettre en corps de texte du RMD 
+<p style="margin-left: 20px; font-size: 2em; color: #304B95;">**Simulateur**</p>
 ```
 
 + **Custom dfsummary**
@@ -1920,6 +2256,8 @@ trackdown::download_file(file = "scripts/Rapport_final.Rmd", gfile = "Rapport_fi
 <p align="center">
  <img src="../figures/graphique.png" width = "110">
 </p>
+    #ou
+![](../figures/graphique.png){fig-align="center"} #en corps de texte
 ```
 
 + **Embed HTML in Rmd page**
@@ -1984,6 +2322,11 @@ git config pull.rebase false
 ```{r eval=FALSE, echo=TRUE}
 git stash push
 git stash push scripts/tableau_de_bord.html #specific file
+
+git stash push data/indicateurs_Sarah/CRM_odoo_dashboard.csv
+git stash push data/indicateurs_Sarah/Suivi_budget_previsionnel.html
+git stash push data/indicateurs_Sarah/table_budget_previsionnel.csv
+git stash push data/indicateurs_Sarah/table_tjh.csv
 ```
 
 
@@ -1996,8 +2339,8 @@ git stash push --include-untracked # supprimer tous les changements locaux (pull
 
 Quand message "*needs merge*" : 
 
-- data/table_tjh.csv
-- commit
+- sélectionner les fichiers en conflit (ex : data/table_tjh.csv)
+- les commit
 - push
 
 
@@ -2060,6 +2403,15 @@ foreach (year = years) %dopar% {
 stopImplicitCluster()
 ```
 
++ **Execution time of a command**
+
+```{r}
+start.time <- Sys.time()
+# R code here
+end.time <- Sys.time()
+round(end.time - start.time,2)
+```
+
 <br>
 
 ### Icônes
@@ -2074,12 +2426,14 @@ stopImplicitCluster()
 
 + **Icons into rmarkdwon**
 
-`fontawesome::fa("play", fill = "#0000CC")`, meilleure solution.
+`r fontawesome::fa("play", fill = "#0000CC")`, meilleure solution ([bibliothèque d'icones](https://fontawesome.com/search)).
 
 
-`icon_style(fontawesome("play", style = NULL), fill = "#0000CC")`, implique ce chunk en début de Rmd :
 
 ```{r icon-style, eval=FALSE, echo=TRUE}
+#`r icon_style(emojifont::fontawesome("play", style = NULL), fill = "#0000CC")`, implique ce chunk en début de Rmd ([bibliothèque d'icones](https://fontawesome.com/v4/icons/)) :
+
+
 #remotes::install_github("mitchelloharawild/icons", force = TRUE)
 library(icons)
 #download_fontawesome()
