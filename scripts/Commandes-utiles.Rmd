@@ -5,8 +5,9 @@ output:
   html_document:
     highlight: textmate
     toc: yes
+    toc_depth: 4
     toc_float: yes
-    code_folding: show
+    code_folding: hide
     includes:
         after_body: footer.html
 ---
@@ -16,7 +17,9 @@ knitr::opts_chunk$set(echo = TRUE,
                       eval = FALSE,
                       warning = F,
                       error = F,
-                      message = F)
+                      message = F,
+                      out.width = '80%',
+                      fig.align = 'center')
 ```
 
 
@@ -739,6 +742,14 @@ proj_comm_date <- cbind(comm1.1, comm2) |> ungroup() |>
 ```
 
 
++ **Unnest (Can't combine x[[1]] <character> and x[[5323]] <double>)**
+
+```{r}
+data |> 
+    mutate(col = lapply(col, as.character)) |> #mettre tout en caractères pour ne plus avoir l'erreur
+    unnest(cols = col, keep_empty = TRUE)
+```
+
 + **List to characters separated with comma for column in a dataframe**
 
 ```{r}
@@ -1124,65 +1135,6 @@ data_stat |>
     guides(fill = "none")
 ```
 
-+ **Custom_theme() BBC**
-
-```{r}
-font <- "Helvetica"
-custom_theme <- function (){
-    font <- "Helvetica"
-    ggplot2::theme(plot.title = ggplot2::element_text(family = font,size = 21, face = "bold", color = "#222222"), 
-        plot.subtitle = ggplot2::element_text(family = font,size = 18, face = "italic", margin = ggplot2::margin(0, 0, 9, 0)), 
-        plot.caption = ggplot2::element_text(family = font,size = 18, margin = ggplot2::margin(9, 0, 9, 0)), 
-        plot.title.position = "plot",
-        plot.caption.position = "plot",
-        legend.title = ggplot2::element_text(family = font, size = 18, color = "#222222"), 
-        legend.position = "top", 
-        legend.text.align = 0, 
-        legend.background = ggplot2::element_blank(),
-        legend.key = ggplot2::element_blank(),
-        legend.text = ggplot2::element_text(family = font, size = 18,color = "#222222"), 
-        axis.text = ggplot2::element_text(family = font, size = 15,color = "#222222"), 
-        axis.text.x = ggplot2::element_text(margin = ggplot2::margin(5,b = 10)), 
-        axis.title = ggplot2::element_text(family = font, size = 18,color = "#222222"),
-        axis.ticks = ggplot2::element_blank(),
-        axis.line = ggplot2::element_blank(), 
-        panel.grid.minor = ggplot2::element_blank(),
-        panel.grid.major.y = ggplot2::element_line(color = "#cbcbcb"),
-        panel.grid.major.x = ggplot2::element_blank(), 
-        panel.background = ggplot2::element_blank(),
-        strip.background = ggplot2::element_rect(fill = "white"),
-        strip.text = ggplot2::element_text(size = 22, hjust = 0, face = "bold"))
-}
-custom_theme_largeG <- function (){
-    font <- "Helvetica"
-    ggplot2::theme(plot.title = ggplot2::element_text(family = font,size = 25, face = "bold", color = "#222222"), 
-        plot.subtitle = ggplot2::element_text(family = font,size = 18, face = "italic", margin = ggplot2::margin(0, 0, 9, 0)), 
-        plot.caption = ggplot2::element_text(family = font,size = 18, margin = ggplot2::margin(9, 0, 9, 0)), 
-        plot.title.position = "plot", #titre commence où y-axis commencent !!
-        plot.caption.position = "plot",
-        legend.title = ggplot2::element_text(family = font, size = 18, color = "#222222"), 
-        legend.position = "top", 
-        legend.text.align = 0, 
-        legend.background = ggplot2::element_blank(),
-        legend.key = ggplot2::element_blank(),
-        legend.text = ggplot2::element_text(family = font, size = 18,color = "#222222"), 
-        axis.text = ggplot2::element_text(family = font, size = 24,color = "#222222"), 
-        axis.text.x = ggplot2::element_text(margin = ggplot2::margin(5,b = 10)), 
-        axis.title = ggplot2::element_text(family = font, size = 27,color = "#222222"),
-        axis.ticks = ggplot2::element_blank(),
-        axis.line = ggplot2::element_blank(), 
-        panel.grid.minor = ggplot2::element_blank(),
-        panel.grid.major.y = ggplot2::element_line(color = "#cbcbcb"),
-        panel.grid.major.x = ggplot2::element_blank(), 
-        panel.background = ggplot2::element_blank(),
-        strip.background = ggplot2::element_rect(fill = "white"),
-        strip.text = ggplot2::element_text(size = 22, hjust = 0, face = "bold"))
-}
-
-# change grid when coord_flip()
-theme(panel.grid.major.x = ggplot2::element_line(color = "#cbcbcb"),
-      panel.grid.major.y = ggplot2::element_blank())
-```
 
 <br>
 
@@ -1194,7 +1146,7 @@ theme(panel.grid.major.x = ggplot2::element_line(color = "#cbcbcb"),
 # Geométrie initiale
   geom_line(size = 1.7, alpha = 0.9, linetype = 1, color = "#0066CC") +
   geom_point(colour = "#0066CC", fill = "#0066CC", size = 2, pch = 21, stroke = 1.5) +
-  geom_bar(position = position_dodge(.9), stat = "identity", width = .8, fill = "#21468d") + #.9 et width pour barres pas collées
+  geom_bar(position = position_dodge(.9), stat = "identity", width = .8, fill = "#2B73B4") + #.9 et width pour barres pas collées
   geom_bar(aes(x = forcats::fct_infreq(adequation))) + #fct_infreq pour ordonner selon count
   geom_col(position = "stack", width = 0.7, color = "white") +  coord_flip() + #cas particulier de geom_bar où on prend n comme Y et non count
   geom_text_wordcloud(family = "Montserrat") +
@@ -1265,6 +1217,70 @@ ggplot(data) +
         ) +
 ```
 
+
++ **theme_custom() BBC**
+
+```{r eval = T}
+font <- "Helvetica"
+theme_custom <- function (){
+    font <- "Helvetica"
+    ggplot2::theme(plot.title = ggplot2::element_text(family = font,size = 21, face = "bold", color = "#222222"), 
+        plot.subtitle = ggplot2::element_text(family = font,size = 18, face = "italic", margin = ggplot2::margin(0, 0, 9, 0)), 
+        plot.caption = ggplot2::element_text(family = font,size = 18, margin = ggplot2::margin(9, 0, 9, 0)), 
+        plot.title.position = "plot",
+        plot.caption.position = "plot",
+        legend.title = ggplot2::element_text(family = font, size = 18, color = "#222222"), 
+        legend.position = "top", 
+        legend.text.align = 0, 
+        legend.background = ggplot2::element_blank(),
+        legend.key = ggplot2::element_blank(),
+        legend.text = ggplot2::element_text(family = font, size = 18,color = "#222222"), 
+        axis.text = ggplot2::element_text(family = font, size = 15,color = "#222222"), 
+        axis.text.x = ggplot2::element_text(margin = ggplot2::margin(5,b = 10)), 
+        axis.title = ggplot2::element_text(family = font, size = 18,color = "#222222"),
+        axis.ticks = ggplot2::element_blank(),
+        axis.line = ggplot2::element_blank(), 
+        panel.grid.minor = ggplot2::element_blank(),
+        panel.grid.major.y = ggplot2::element_line(color = "#cbcbcb"),
+        panel.grid.major.x = ggplot2::element_blank(), 
+        panel.background = ggplot2::element_blank(),
+        strip.background = ggplot2::element_rect(fill = "white"),
+        strip.text = ggplot2::element_text(size = 22, hjust = 0, face = "bold"))
+}
+theme_custom_largeG <- function (){
+    font <- "Helvetica"
+    ggplot2::theme(plot.title = ggplot2::element_text(family = font,size = 25, face = "bold", color = "#222222"), 
+        plot.subtitle = ggplot2::element_text(family = font,size = 18, face = "italic", margin = ggplot2::margin(0, 0, 9, 0)), 
+        plot.caption = ggplot2::element_text(family = font,size = 18, margin = ggplot2::margin(9, 0, 9, 0)), 
+        plot.title.position = "plot", #titre commence où y-axis commencent !!
+        plot.caption.position = "plot",
+        legend.title = ggplot2::element_text(family = font, size = 18, color = "#222222"), 
+        legend.position = "top", 
+        legend.text.align = 0, 
+        legend.background = ggplot2::element_blank(),
+        legend.key = ggplot2::element_blank(),
+        legend.text = ggplot2::element_text(family = font, size = 18,color = "#222222"), 
+        axis.text = ggplot2::element_text(family = font, size = 24,color = "#222222"), 
+        axis.text.x = ggplot2::element_text(margin = ggplot2::margin(5,b = 10)), 
+        axis.title = ggplot2::element_text(family = font, size = 27,color = "#222222"),
+        axis.ticks = ggplot2::element_blank(),
+        axis.line = ggplot2::element_blank(), 
+        panel.grid.minor = ggplot2::element_blank(),
+        panel.grid.major.y = ggplot2::element_line(color = "#cbcbcb"),
+        panel.grid.major.x = ggplot2::element_blank(), 
+        panel.background = ggplot2::element_blank(),
+        strip.background = ggplot2::element_rect(fill = "white"),
+        strip.text = ggplot2::element_text(size = 22, hjust = 0, face = "bold"))
+}
+```
+
+
+```{r}
+# change grid when coord_flip()
+theme(panel.grid.major.x = ggplot2::element_line(color = "#cbcbcb"),
+      panel.grid.major.y = ggplot2::element_blank())
+```
+
 #### Facet
 
 ```{r}
@@ -1307,80 +1323,84 @@ iris <- janitor::clean_names(iris)
 library(tidyverse)
 ```
 
+#### Donut / pie chart
+
 + **Donut**
 
-```{r eval = T, out.width = '60%', fig.align = 'center'}
-iris |> 
-    group_by(species) |> summarise(Freq = n()) |> 
-    mutate(fraction = Freq / sum(Freq),
-           proportion = round((Freq / sum(Freq))*100),
-           ymax = cumsum(fraction),
-           ymin = c(0, head(ymax, n = -1)), 
-           labelPosition = (ymax + ymin) / 2) |> 
-    ggplot(aes(ymax = ymax, ymin = ymin, xmax = 3.3, xmin = 2, fill = species)) +
-      geom_rect(col = "white", linewidth = 2) +
-      geom_text(x = 4, aes(y = labelPosition, label = paste(proportion,"%",sep = "")), color = "#333333", size = 7) +
-      geom_text(aes(x = 0, y = 0, label = sum(Freq)), col = "#333333", alpha = 0.8, size = 14, fontface = "bold", inherit.aes = FALSE) +
-      scale_fill_manual(values = c('#fecf5d', '#21468d','#82888d')) +
-      coord_polar(theta = "y") +
-      labs(title = "Titre") +
-      xlim(c(0, 4)) +   
-      theme_void() +
-      theme(legend.position = "right",
-            plot.title = element_text(face = "bold"))+
-      guides(fill = guide_legend(title = ""))
+```{r eval = T}
+# Data pour le graphique
+data_graph <- data.frame(Categorie = c("AA", "BB", "CC"),
+                         Valeur = c(40, 40, 20)) |> 
+    mutate(percent = round(Valeur / sum(Valeur) * 100, 0))
+
+# Dataviz
+ggplot(data_graph, aes(x = 2, y = Valeur, fill = Categorie)) +
+  geom_col(col = "white", linewidth = 2) +
+  geom_text(aes(label = paste0(percent, "%"), color = Categorie),
+            position = position_stack(vjust = 0.5)) +
+  geom_text(aes(x = 0.2, y = 0, label = sum(Valeur)), col = "#333333", alpha = 0.8, size = 8, fontface = "bold") +
+  coord_polar(theta = "y") +
+  scale_fill_manual(values = c('#fecf5d', '#2B73B4','#82888d')) +
+  scale_color_manual(values = c("AA" = "black", "BB" = "white", "CC" = "white")) +
+  xlim(c(0.2, 2 + 0.5)) +
+  labs(title = "Répartition des catégories selon les espèces") +
+  guides(fill = guide_legend(title = "Catégories"),
+         col = "none") +
+  theme(panel.background = element_rect(fill = "white"),
+        panel.grid = element_blank(),
+        axis.title = element_blank(),
+        axis.ticks = element_blank(),
+        axis.text = element_blank(),
+        legend.position = "top",
+        legend.title = element_text(size = 16,color = "#222222"), 
+        legend.text = element_text(size = 13,color = "#222222"), 
+        plot.title.position = "plot",
+        plot.title = element_text(size = 18, face = "bold", color = "#222222"))
 ```
 
 + **Pie chart**
 
-```{r}
-# Table
-table <- iris |> 
-  summarise(nb= n(), .by = species) |> na.omit() |> 
-  mutate(Pourcentage = round(nb / sum(nb) * 100, 0)) |> 
-  mutate(ypos = cumsum(nb) - .5 * nb)
-
+```{r eval = T}
 # Dataviz
-table |> 
-    ggplot(aes(x = "", y = nb, fill = species)) +  
-      geom_bar(stat = "identity", width = 1, color = "white", size = 2) +
-      coord_polar("y") +
-      #scale_fill_manual(values = c("Oui" = "#3182bd", "Non" = "#9ecae1")) +
-      labs(title = str_wrap("Répartition de l'échantillon", width = 35)) +
-      theme_classic() + 
-      theme(legend.position = "top",
-            strip.text.x = element_text(size = 12, face = "bold"),
-            strip.background = element_blank(),
-            axis.title = element_blank(),
-            axis.ticks = element_blank(),
-            axis.line = element_blank(),
-            axis.text = element_blank(),
-            legend.text = ggplot2::element_text(size = 18, color = "#222222"), 
-            legend.title = ggplot2::element_text(size = 18, color = "#222222"), 
-            text = element_text(family = "Montserrat", size = 12),
-            plot.title = ggplot2::element_text(size = 19, face = "bold", color = "#222222"), 
-            plot.caption = ggplot2::element_text(face = "italic", size = 18, 
-                                                 color = "#666666", margin = ggplot2::margin(9, 0, 9, 0)), 
-            plot.title.position = "plot", 
-            plot.caption.position = "plot") +
-      guides(fill = guide_legend(reverse = T, title = "")) +
-      geom_text(aes(y = ypos, x = 2, label = paste(round(Pourcentage,0), "%", sep="")), 
-                color = "#333333", size=5, check_overlap = T)
+ggplot(data_graph, aes(x = 0, y = Valeur, fill = Categorie)) +
+  geom_col(col = "white", linewidth = .6) +
+  geom_text(aes(label = paste0(percent, "%"), color = Categorie),
+            position = position_stack(vjust = 0.5)) +
+  coord_polar(theta = "y") +
+  scale_fill_manual(values = c('#fecf5d', '#2B73B4','#82888d')) +
+  scale_color_manual(values = c("AA" = "black", "BB" = "white", "CC" = "white")) +
+  labs(title = "Répartition des catégories selon les espèces") +
+  guides(fill = guide_legend(title = "Catégories"),
+         col = "none") +
+  theme(panel.background = element_rect(fill = "white"),
+        panel.grid = element_blank(),
+        axis.title = element_blank(),
+        axis.ticks = element_blank(),
+        axis.text = element_blank(),
+        legend.position = "top",
+        legend.title = element_text(size = 16,color = "#222222"), 
+        legend.text = element_text(size = 13,color = "#222222"), 
+        plot.title.position = "plot",
+        plot.title = element_text(size = 18, face = "bold", color = "#222222"))
 ```
 
-+ **Histogram**
+#### Histogram
 
-```{r eval = T, out.width = '60%', fig.align = 'center'}
++ **Simple histogram**
+
+```{r eval = T}
+# Dataviz
 iris |> 
     ggplot() +
-      aes(x = sepal_length) +
-      geom_histogram(bins = 7L, col = "white", fill = "#21468d", width = 5) +
+      geom_histogram(aes(x = sepal_length),
+                     bins = 7L, col = "white", fill = "#2B73B4", width = 5) +
       geom_vline(xintercept = mean(iris$sepal_length, na.rm = TRUE), linetype = 2, col = "red") +
-      geom_text(aes(x = mean(sepal_length, na.rm = T), y = 1, label = paste("Moyenne :", round(mean(sepal_length, na.rm = T), 1))), 
+      geom_text(aes(x = mean(sepal_length, na.rm = T) + .2, y = 38, 
+                    label = paste("Moyenne :", round(mean(sepal_length, na.rm = T), 1), "cm")), 
                 col = "red", fontface = "italic", hjust = 0, size = 5) +
-      labs(x = "Valeur",y = "Fréquence", title = "Titre",
+      labs(x = "Valeur",y = "Fréquence", title = "Distribution de la longeur des pétales des iris",
            subtitle = paste(iris |> filter(is.na(sepal_length)) |> nrow(), "valeur manquante")) +
-      theme_classic() +
+      theme_custom() +
       theme(plot.subtitle = element_text(face = "italic"),
             plot.title = element_text(face = "bold")) +
       scale_x_continuous(n.breaks = 10)
@@ -1388,157 +1408,242 @@ iris |>
 
 + **Histogram on multiple variables**
 
-```{r eval = T, out.width = '60%', fig.align = 'center'}
+```{r eval = T}
+# Dataviz
 iris |> 
-  #select(1, 37:40) |> 
   reshape2::melt(id.vars = c("species")) |> 
-  ggplot(aes(x = value)) +
-      geom_histogram(bins = 10L, col = "white", fill = "#21468d", width = 5) +
-      labs(x = "Valeur", y = "Fréquence", title = "Titre") +
-      theme_classic() +
-      theme(plot.title = element_text(face = "bold")) +
+  ggplot() +
+      geom_histogram(aes(x = value),
+                     bins = 10L, fill = "#2B73B4", binwidth = .2) +
+      labs(x = "Valeur", y = "Fréquence", 
+           title = "Distribution des différents éléments des iris") +
+      theme_custom() +
       facet_wrap(variable ~ .)
 ```
 
 + **Histogram with normal distribution**
 
-```{r}
-ggplot(data = table_femmes) + 
-  geom_histogram(mapping = aes(x = percent, y=..density..), fill = "#fd710f", color = "white", alpha = .7) +
-  stat_function(fun = dnorm, args = list(mean = mean(table_femmes$percent), sd = sd(table_femmes$percent)), 
-                size = 1, alpha = .8, aes(col = "Distribution normale")) +
-  scale_colour_manual("", values = c("#cb1d27")) +
-  labs(title = "Distribution de la part des femmes dans les cohortes", x = "Pourcentage de femmes", y = "Densité") +
-  theme_classic() +
-  scale_x_continuous(labels = scales::percent, limits = c(0,1)) +
-  geom_vline(xintercept = .5, linetype = 2, col = "#666666", linewidth = .7) +
-  custom_theme() +
-  theme(plot.title = ggplot2::element_text(size = 18))
+```{r eval=T}
+# Dataviz
+iris |> 
+  ggplot() +
+    geom_histogram(aes(x = sepal_length, y=..density..),
+                   bins = 7L, color="#e9ecef", fill = "#2B73B4") +
+    stat_function(fun = dnorm, args = list(mean = mean(iris$sepal_length), sd = sd(iris$sepal_length)), 
+              size = 1, alpha = .8, aes(col = "Distribution normale")) +
+    labs(x = "Valeur", y = "Densité", col = "",
+         title = "Distribution de la longeur des pétales des iris") +
+    theme_custom() +
+    scale_x_continuous(n.breaks = 10)
+```
+
+#### Barplot
+
++ **Highlight one category**
+
+```{r eval = T}
+# Data pour le graphique
+data_graph <- data.frame(
+  stringsAsFactors = FALSE,
+         Categorie = c("AA", "BB", "CC", "DD", "EE"),
+            Valeur = c(17, 43, 5, 14, 29))
+
+# Graph
+data_graph |> 
+    mutate(percent = round((Valeur / sum(Valeur))*100, 0),
+           Categorie = fct_reorder(Categorie, Valeur)) |> 
+    ggplot()+
+        geom_bar(aes(x = Categorie, y = Valeur, alpha = Categorie != "EE"), 
+                 stat = "identity", width = .6, fill = "#2B73B4") +
+        geom_text(aes(y = Valeur+.05*max(Valeur), x = Categorie, label = paste(percent,"%",sep = "")), 
+                  color = "#333333", check_overlap = T) +
+        scale_alpha_manual(values = c(.9, .4)) +
+        coord_flip() +
+        labs(y = "Fréquence", title = "Répartition des catégories selon la valeur") +
+        theme_custom() +
+        theme(legend.position = "none",
+              axis.title.y = element_text(margin = margin(t = 0, r = 10, b = 0, l = 0)),
+              panel.grid.major.x = ggplot2::element_line(color = "#cbcbcb"),
+              panel.grid.major.y = ggplot2::element_blank())
 ```
 
 + **Barplot ordering bars with geom_bar()**
 
-```{r}
+```{r eval = TRUE}
 iris |> 
     filter(sepal_width >= 3) |> 
     ggplot() +
       aes(x = reorder(species, species,
                          function(x)+length(x))) + #+ pour descendant, - pour ascendant
-      geom_bar(fill = "#3182BD") +
+      geom_bar(fill = "#3182BD", alpha = .9) +
       coord_flip() +
-      theme_minimal() +
+      theme_custom() +
       theme(panel.grid.major.x = ggplot2::element_line(color = "#cbcbcb"),
             panel.grid.major.y = ggplot2::element_blank(),
             axis.title.y = element_blank())
 ```
 
-+ **Pyramid**
++ **Barplot en facet_grid**
 
-```{r eval = T, out.width = '60%', fig.align = 'center'}
+```{r eval = TRUE, fig.width=10}
+# Données pour le graph
+table_graph_global <- data.frame(
+   stringsAsFactors = FALSE,
+             Acteur = c("A","A","A","A","B","B",
+                        "B","B","C","C","C","C","D","D","D","D","E",
+                        "E","E","E","F","F","F","F","G","G","G"),
+         Importance = c("Forte","Moyenne",
+                        "Indispensable","Faible","Indispensable","Forte","Moyenne",
+                        "Faible","Indispensable","Forte","Moyenne","Faible",
+                        "Forte","Moyenne","Indispensable","Faible","Moyenne",
+                        "Forte","Indispensable","Faible","Forte",
+                        "Indispensable","Moyenne","Faible","Forte","Moyenne",
+                        "Faible"),
+         nb_actions = c(6,6,5,3,4,7,3,
+                        3,2,5,3,3,6,7,2,2,3,3,1,2,4,
+                        2,2,3,5,3,2),
+  nb_actions_acteur = c(20,20,20,20,17,17,
+                        17,17,13,13,13,13,17,17,17,17,9,
+                        9,9,9,11,11,11,11,11,11,11)
+)
+# Viz globale
+table_graph_global |> 
+  #ajout des infos quand aucune action pour telle importance pour un acteur en particulier
+  add_row(Acteur = "G", Importance = "Indispensable", nb_actions = 0, nb_actions_acteur =11) |> 
+  #tri des valeurs
+  mutate(Acteur = fct_reorder(Acteur, nb_actions_acteur),
+         Importance = factor(Importance, levels = c("Faible", "Moyenne", "Forte", "Indispensable"))) |> 
+  #graph
+  ggplot() +
+  geom_col(aes(x = Acteur, y = 7), fill = "#F3F3F3", width = .85) +
+  geom_col(aes(x = Acteur, y = nb_actions, fill = Importance), width = .85) +
+  geom_text(aes(x = Acteur, y = nb_actions-.4, col = Importance,
+                label = ifelse(nb_actions != 0, nb_actions, ""))) +
+  geom_text(aes(x = Acteur, y = 6.5, 
+                label = ifelse(Importance == "Indispensable", nb_actions_acteur, "")), col = "black") +
+  labs(y = "Nombre d'actions", title = "Nombre d'actions à mener par chaque acteur selon leur importance") +
+  scale_fill_manual(values = c("Faible" = "#2B73B4", "Moyenne" = "#fecf5d", 
+                                   "Forte" = "#ed8b00", "Indispensable" = "#dd4124")) +
+  scale_color_manual(values = c("Faible" = "white", "Moyenne" = "black", 
+                                   "Forte" = "white", "Indispensable" = "white")) +
+  coord_flip() +
+  facet_grid(~Importance) +
+  theme_minimal() +
+  theme(legend.position = "none",
+        axis.title = element_blank(),
+        axis.text.x = element_blank(),
+        panel.grid = element_blank(),
+        title = element_text(face = "bold", size = 15),
+        strip.text = element_text(size = 12, hjust = 0.085),
+        plot.title.position = "plot")
+```
+
++ **Grouped barplot**
+
+```{r eval=T}
+# Data pour le graphique
+data_graph <- data.frame(
+  stringsAsFactors = FALSE,
+         Categorie = c("AA", "BB", "CC", "DD", "AA", "BB", "CC", "DD"),
+            Percent = c(0.47, 0.25, 0.13, 0.15, 0.42, 0.28, 0.11, 0.19),
+             Annee = c("2020", "2020", "2020", "2020", "2025", "2025", "2025", "2025"),
+            Ecart = c("-5", "+3", "-2", "+4"))
+
+# Dataviz
+data_graph |> 
+  mutate(max_percent = max(Percent), .by = Categorie) |> 
+  ggplot(aes(x = Categorie, y = Percent, fill = Annee)) +
+  geom_bar(position="dodge", stat="identity", width=.6, alpha = .9) +
+  coord_flip() +
+  labs(x = "", y = "Pourcentage", 
+       title = stringr::str_wrap("Évolution des réponses entre <span style='color: #fecf5d;'>2020</span> et <span style='color: #2B73B4;'>2025</span>", width = 55)) +
+  scale_x_discrete(labels = function(x) stringr::str_wrap(x, width = 40)) + 
+  scale_y_continuous(labels = scales::percent) + # pourcentages
+  scale_fill_manual(values = c("2020" = "#fecf5d", "2025" = "#2B73B4")) +
+  theme_custom() +
+  theme(legend.position = "none",
+        panel.grid.major.x = ggplot2::element_line(color = "#cbcbcb"),
+        panel.grid.major.y = ggplot2::element_blank(),
+        plot.title = element_markdown()) +
+  geom_label(aes(x = Categorie, y = max_percent, label = paste0(Ecart, "%")), 
+             position="dodge", color = "#333333", hjust = 0, 
+             fill = "white", label.size = NA)
+```
+
+#### Pyramid
+
+```{r eval = T}
 library(lemon)
-iris |> 
-  filter(species !=  "setosa") |> 
-  mutate(tranche_pw = cut(petal_width, c(0.1, 0.5, seq(1, 2.5, .5)))) |> 
-  group_by(tranche_pw, species) |> 
-  summarise(Freq = n()) |> ungroup() |> group_by(species) |> 
-  mutate(percent = Freq / sum(Freq) *100,
-         percent = ifelse(percent < 0.5, round(percent, 1), round(percent, 0))) |> 
-  na.omit() |> 
-  ungroup() |> 
-  ggplot(mapping = aes(x = ifelse(species ==  "versicolor", -Freq, Freq), y = tranche_pw, fill = species)) +
-      geom_col(col = "white", size = 1.3) + #col = "black"
-      geom_text(aes(y = tranche_pw, x = ifelse(species ==  "versicolor", -Freq-1, Freq+1), label = paste(percent,"%",sep = "")), 
-                color = "#333333", size = 3, check_overlap = T) +
-      scale_x_symmetric(labels = abs) + 
-      scale_colour_manual(values = c('#fecf5d', '#21468d'),
-                          aesthetics = c("colour", "fill")) +
-      labs(x = "Fréquence", y = "", title = "Titre") +
-      theme_classic() + 
-      theme(legend.position = "right",
-            plot.title = element_text(face = "bold"),
-            axis.title.y = element_blank(),
-            axis.line.y = element_blank(),
-            axis.ticks.y = element_blank()) +
-      guides(fill = guide_legend(title = ""))
+
+# Data pour le graphique
+data_graph <- data.frame(
+  stringsAsFactors = FALSE,
+               Age = c("[0;15[","[15;40[","[40;65[","[65;100[",
+                       "[0;15[","[15;40[","[40;65[","[65;100["),
+              Sexe = c("Homme","Homme","Homme","Homme",
+                       "Femme","Femme","Femme","Femme"),
+           Nb_pers = c(5, 17, 32, 12, 7, 22, 25, 18))
+  
+# Dataviz
+data_graph |> 
+  mutate(percent = Nb_pers / sum(Nb_pers) *100,
+         percent = ifelse(percent < 0.5, round(percent, 1), round(percent, 0)), 
+         .by = Sexe) |> 
+  ggplot(mapping = aes(x = ifelse(Sexe ==  "Homme", -Nb_pers, Nb_pers), y = Age, fill = Sexe)) +
+  geom_col(size = 1.3) + 
+  geom_label(aes(y = Age, 
+                x = ifelse(Sexe ==  "Homme", -Nb_pers, Nb_pers), 
+                label = paste(percent,"%",sep = ""), 
+                hjust = ifelse(Sexe ==  "Homme", 1, 0)), 
+            color = "#333333", check_overlap = T, fill = "white", label.size = NA) +
+  #valeur sur l'axe en valeurs absolues
+  scale_x_symmetric(labels = abs, 
+                    limits = c(0, max(data_graph$Nb_pers)+0.1*max(data_graph$Nb_pers))) +
+  scale_colour_manual(values = c('#fecf5d', '#2B73B4'),
+                      aesthetics = c("colour", "fill")) +
+  labs(x = "Fréquence", y = "", title = "Pyramide des âges de la population interrogée") +
+  theme_custom() + 
+  theme(legend.position = "top",
+        panel.grid.major.x = ggplot2::element_line(color = "#cbcbcb"),
+        panel.grid.major.y = ggplot2::element_blank()) +
+  guides(fill = guide_legend(title = "", reverse = TRUE))
 ```
 
-+ **Bar**
 
-```{r eval = T, out.width = '60%', fig.align = 'center'}
-iris |> 
-    group_by(species) |> 
-    summarise(n = n()) |> ungroup() |> na.omit() |> 
-    mutate(percent = round((n / sum(n))*100, 0)) |> 
-    mutate(species = fct_reorder(species, n)) |> 
-    ggplot(aes(x = species, y = n))+
-        geom_bar(stat = "identity", width = .6, fill = "#21468d") +
-        geom_text(aes(y = n+3, x = species, label = paste(percent,"%",sep = "")), 
-                color = "#333333", size = 3, check_overlap = T) +
-        coord_flip() +
-        labs(x = "", y = "Fréquence", title = "Titre") +
-        scale_y_discrete(labels = function(x) stringr::str_wrap(x, width = 70)) + #axis-text trop longs sur plusieurs lignes
-        theme_classic() +
-        theme(plot.title = element_text(face = "bold"),
-              axis.title.x = element_text(margin = margin(t = 10, r = 0, b = 0, l = 0)))
-```
 
-+ **Radar**
+#### Radar 
 
-```{r eval = F, out.width = '60%', fig.align = 'center'}
-devtools::install_github("ricardo-bion/ggradar")  #installation impossible
+```{r eval = T}
+#devtools::install_github("ricardo-bion/ggradar")  
 library(ggradar)
+
+# Dataviz
 iris |> 
   select(sepal_length, sepal_length:petal_width) |> 
-  summarise_all(funs(mean(., na.rm = T))) |> 
+  summarise_all(funs(median(., na.rm = T))) |> 
   ggradar(values.radar = c("1", "3", "5"),
           grid.min = 1, grid.mid = 3, grid.max = 5,
           # Polygones
           group.line.width = 1, 
           group.point.size = 3,
-          group.colours = "#21468d",
+          group.colours = "#2B73B4",
           # Arrière-plan et lignes de grille
           background.circle.colour = "white",
           gridline.mid.colour = "grey") +
   xlim(-10,10) + #selon longueur catégories
-  labs(title = "Titre") +
+  labs(title = "Mesure moyenne des iris") +
   theme(legend.position = "none",
+        plot.title.position = "plot",
         plot.title = element_text(face = "bold"))
 ```
 
-+ **Comparison gauge**
 
-```{r eval = T, out.width = '60%', fig.align = 'center'}
-comp_data <- data.frame("variable" = c("sepal_length", "sepal_width", "petal_length", "petal_width"),
-           "Minimum" = c(min(iris$sepal_length), min(iris$sepal_width), 
-                         min(iris$petal_length), min(iris$petal_width)),
-           "Maximum" = c(max(iris$sepal_length), max(iris$sepal_width), 
-                         max(iris$petal_length), max(iris$petal_width)),
-           "Moyenne" = c(mean(iris$sepal_length), mean(iris$sepal_width), 
-                         mean(iris$petal_length), mean(iris$petal_width)))
-comp_data |> 
-  arrange(variable) |> 
-  mutate(variable = factor(variable, levels = rev(unique(variable)))) |> 
-  ggplot() +
-    geom_segment(aes(x = Minimum, xend = Maximum, y = variable, yend = variable, colour = variable), lwd = 10) +
-    geom_segment(aes(x = Moyenne, xend = Moyenne+.05, y = variable, yend = variable), 
-                 colour = ifelse(comp_data$variable ==  "sepal_length", "white", "black"), lwd = 10) +
-    geom_text(aes(x = Moyenne+.2, y = variable, label = paste("Moyenne :", round(Moyenne, 1)), hjust = "bottom"), 
-              size = 3, col = ifelse(comp_data$variable ==  "sepal_length", "white", "#333333")) +
-    labs(title = "Titre", x = "Score", y = "") +
-    scale_y_discrete(labels = function(x) stringr::str_wrap(x, width = 50)) +
-    scale_color_manual(values = c("petal_length" = "#21468d", 
-                                  "sepal_width" = "#fecf5d", 
-                                  "sepal_length" = "#d55152", 
-                                  "petal_width" = "#ddd6ad")) +
-    theme_bw() +
-    theme(legend.position = "none", 
-          plot.title = element_text(face = "bold"))
-```
+#### Infographics
 
 + **Infographie simple**
 
-```{r}
-library(icons)
+```{r eval = TRUE, out.width='50%'}
+library(icons) ## remotes::install_github("mitchelloharawild/icons")
 library(tidyverse)
 # Table
 df <- data.frame(
@@ -1549,7 +1654,7 @@ df <- data.frame(
     value = c(5, 7, 17, 5),
     info = c("Communes",
              "Participants",
-             "Jeux de données \nouverts",
+             "JDD",
              "Réutilisations"),
     color = factor(1:4)
 )
@@ -1559,94 +1664,132 @@ ggplot(df, aes(x, y, height = h, width = w, label = info)) +
     ## Create the tiles using the `color` column
     geom_tile(aes(fill = color)) +
     ## Add the numeric values as text in `value` column
-    geom_text(color = "white", fontface = "bold", size = 16,
-              aes(label = ifelse(value > 999, format(as.integer(value, 0), nsmall = 1, big.mark = "."), value), 
-                  x = x, y = y + 0.7), 
-              hjust = 0.5) +
-    ## Add the labels for each box stored in the `info` column
     geom_text(color = "white", fontface = "bold", size = 10,
+              aes(label = ifelse(value > 999, format(as.integer(value, 0), nsmall = 1, big.mark = "."), value), 
+                  x = x, y = y+.5), 
+              hjust = 1) +
+    ## Add the labels for each box stored in the `info` column
+    geom_text(color = "white", fontface = "bold", size = 5,
               aes(label = info, x = x - 2.9, y = y - 1), hjust = 0) +
-    coord_fixed() +
+    coord_fixed(expand = F) +
     #scale_fill_manual(type = "qual", palette = "Dark2") +
-    scale_fill_manual(values = c("#9bcea4", "#ef7875", "#ffcc00", "#23ae84", "#fecf5d", "#21468d")) +
+    scale_fill_manual(values = c("#9bcea4", "#ef7875", "#ffcc00", "#23ae84", "#fecf5d", "#2B73B4")) +
     ## Use `geom_text()` to add the icons by specifying the unicode symbol.
     theme_void() +
     guides(fill = FALSE)
 ```
 
-+ **Correlation matrix with ggplot**
++ **Infographie mise en page**
 
-```{r}
+```{r eval=TRUE}
+# Données
+df <- data.frame(
+    x = c(2, 2, 2),
+    y = c(2, 6.5, 11), 
+    h = rep(4.25, 3),
+    w = rep(18, 3),
+    value = c("46%", "3", "77%"),
+    info = c("des participants à l'enquête blablala ", "communes sur 10 considèrent que blablala", "des commerçants ont à coeur de blablabla"),
+    icon = c(emojifont::fontawesome("fa-handshake-o"), emojifont::fontawesome("fa-comment-o"), emojifont::fontawesome("fa-comments-o")),
+    font_family = c(rep("FontAwesome", 3)),
+    color = factor(1:3))
+
+# Graph
+ggplot(df, aes(x, y, height = h, width = w, label = info)) +
+    ## Create the tiles using the `color` column
+    geom_tile(aes(fill = color)) +
+    ## Add the numeric values as text in `value` column
+    geom_text(color = c("1" = "white", "2" = "white", "3" = "white"), family = "Din", fontface = "bold", size = 18,
+              aes(label = value, x = x - 4.1, y = y + 1), hjust = 0) +
+    ## Add the labels for each box stored in the `info` column
+    geom_text(color = c("1" = "white", "2" = "white", "3" = "white"), family = "Helvetica", fontface = "bold", size = 4,
+              aes(label = str_wrap(info, width = 50), x = x - 4.1, y = y - .8), hjust = 0, lineheight = 0.5) +
+    coord_fixed() +
+    scale_fill_brewer(type = "qual",palette = "Dark2") +
+    ## Add the icons by specifying the unicode symbol.
+    geom_text(color = c("1" = "#087370", "2" = "#FFB4A6", "3" = "#9AB0B0"),
+              size = 23, aes(label = icon, family = font_family,
+                             x = -4.5, y = y + 0.15), alpha = 0.9) +
+    # Couleurs
+    scale_fill_manual(values = c("1" = "#9AB0B0", "2" = "#EC6459", "3" = "#087370")) +
+    # Titre et thème
+    labs(title = "    Dans l'échantillon des répondants :") +
+    theme_void() +
+    theme(plot.title = element_text(size = 18, face = "bold", color = "#222222")) +
+    guides(fill = FALSE)
+```
+
+#### Correlation matrix
+
+
++ **With corrplot package**
+
+```{r eval=T}
+library(corrplot)
+
+# Dataviz
+corrplot(matrix, method="color", col=col(200),  
+         type="upper", order="hclust", 
+         addCoef.col = "black", # Ajout du coefficient de corrélation 
+         tl.srt = 45, tl.col = "black", tl.cex = .8, #Rotation des etiquettes de textes
+         diag = TRUE, mar=c(0,0,5,0), 
+         title = "Correlation négative entre sepal_width et les autres mesures")
+```
+
++ **With ggplot**
+
+```{r eval=T}
+library(ggcorrplot)
+library(ggtext)
+
+# Data pour le graphique
+matrix <- cor(iris |> select(-species))
+
+# Dataviz
     # couleurs
 col <- colorRampPalette(c("#BB4444", "#EE9988", "#FFFFFF", "#77AADD", "#4477AA"))
 bgcolors <- matrix("black", nrow(matrix), ncol(matrix),dimnames = dimnames(matrix))
-bgcolors[,2] <- "red"
+bgcolors[,1] <- "red"
 bgcolors <- bgcolors[lower.tri(bgcolors, diag=TRUE)]
     # matrice
 ggcorrplot(matrix, hc.order = T, type = "lower", show.diag = TRUE, legend.title = "",
            lab = TRUE, lab_col = bgcolors, colors = c("#BB4444", "white", "#4477AA")) +
-    labs(title = stringr::str_wrap("Décorrelation entre la phase <span style='color: red;'>Analyse, traitement, calcul</span> et les autres phases du cycle de vie", width = 50), 
-         subtitle = "Les phases de dépôt et de partage fortement connectées entre elles", 
-         caption = "Sur quelle(s) partie(s) du cycle de vie des données intervenez-vous ? - 5642 réponses") +
+    labs(title = "Correlation négative entre <span style='color: red;'>sepal_width</span> <br>et les autres mesures") +
+    geom_label(aes(x = 3, y = 4), label = "petal_width", vjust = .4, hjust = "right", 
+               fill = "white", label.size = NA) +
+    geom_label(aes(x = 2, y = 3), label = "petal_length", vjust = .4, hjust = "right", 
+               fill = "white", label.size = NA) +
+    geom_label(aes(x = 1, y = 2), label = "sepal_length", vjust = .4, hjust = "right", 
+               fill = "white", label.size = NA) +
+    geom_label(aes(x = 0, y = 1), label = "sepal_width", vjust = .4, hjust = "right", 
+               fill = "white", label.size = NA) +
+    coord_fixed(clip = 'off') +
     theme(axis.text.y = element_blank(),
           panel.grid = element_blank(),
-          plot.subtitle = element_markdown(size = 15),
-          plot.title = element_markdown(size = 18, lineheight = 2),
-          plot.caption = element_text(size = 15, face = "italic", hjust = 0, color = "#cbcbcb")) +
-    geom_label(aes(x = 6, y = 7), label = "Dépot", family = font, vjust = .4, hjust = "right", 
-               fill = "white", label.size = NA) +
-    geom_label(aes(x = 5, y = 6), label = "Préparation du dépôt", family = font, vjust = .4, hjust = "right", 
-               fill = "white", label.size = NA) +
-    geom_label(aes(x = 4, y = 5), label = "Ouverture ou partage", family = font, vjust = .4, hjust = "right", 
-               fill = "white", label.size = NA) +
-    geom_label(aes(x = 3, y = 4), label = "Planification, PGD", family = font, vjust = .4, hjust = "right", 
-               fill = "white", label.size = NA) +
-    geom_label(aes(x = 2, y = 3), label = "Réutilisation", family = font, vjust = .4, hjust = "right", 
-               fill = "white", label.size = NA) +
-    geom_label(aes(x = 1, y = 2), label = "Analyse, traitement, calcul", family = font, vjust = .4, hjust = "right", 
-               fill = "white", label.size = NA) +
-    geom_label(aes(x = 0, y = 1), label = "Collecte, création, stockage", family = font, vjust = .4, hjust = "right", 
-               fill = "white", label.size = NA) +
-    coord_fixed(clip = 'off') 
+          plot.title.position = "plot",
+          plot.title = element_markdown(size = 18, lineheight = .2))
+
 ```
 
-+ **Positive and negative evolutions**
 
-```{r}
-test <- table |> 
-  mutate(ecart = ecart/100,
-         type_ecart = case_when(ecart >= 0 ~ "positif",
-                                ecart < 0 ~ "negatif",
-                                .default = NA_character_)) |> 
-  select(Structure, Réponses, ecart, type_ecart) |> na.omit() 
-test |> 
-  ggplot(aes(x = Réponses, y = ecart, fill = type_ecart)) +
-    geom_bar(stat="identity", width=.6, size = 2, alpha = .7) +
-    coord_flip() +
-    labs(x = "", y = "Écart en points de pourcentage", 
-         subtitle = "Évolution des réponses entre l'édition 2022 et l'édition 2023",
-         title = stringr::str_wrap("Commençons par la protection de la vie privée. Considérez-vous que votre structure est en conformité avec le RGPD ?", width = 55)) +
-    scale_x_discrete(labels = function(x) stringr::str_wrap(x, width = 40)) + 
-    scale_y_continuous(labels = scales::percent) + # pourcentages
-    scale_fill_manual(values = c("positif" = "#288a28", "negatif" = "#a81008")) +
-    theme_classic() +
-    custom_theme() +
-    theme(legend.position = "none",
-          panel.grid.major.x = ggplot2::element_line(color = "#cbcbcb"),
-          panel.grid.major.y = ggplot2::element_blank(),
-          plot.subtitle = element_markdown()) +
-    geom_label(aes(x = Réponses, y = ecart, label = paste0(ecart*100, "%")), 
-              color = "#333333", size = 4, fill = "white", label.size = NA, 
-              hjust = ifelse(test$ecart >= 0, 0, 1))
-```
 
-+ **Cartography leaflet (points)**
+#### Carto
 
-```{r}
++ **General cartography leaflet (points)**
+
+```{r eval=T}
 library(leaflet)
 library(htmltools)
 
-    # titre
+# Data pour le graphique
+data_graph <- data.frame(
+  stringsAsFactors = FALSE,
+            Ville = c("Nantes","Paris","Bordeaux","Lyon","Marseille"),
+         Nb_users = c(100L,500L,300L,400L,500L),
+        Longitude = c(-1.5528,2.333333,-0.580816,4.85,5.37),
+         Latitude = c(47.218102,48.866667,44.836151,45.75,43.296398))
+
+  # titre
 tag.map.title <- tags$style(HTML("
   .leaflet-control.map-title { 
     transform: translate(0%,-170%);
@@ -1659,53 +1802,52 @@ tag.map.title <- tags$style(HTML("
     color: black;
   }
 "))
-title <- tags$div(tag.map.title, HTML("Localisation des participants aux projets (hors ZFE)"))
+title <- tags$div(tag.map.title, HTML("Localisation des utilisateurs"))
 
-    # carte
-proj_loin |> 
+# Dataviz
+data_graph |> 
   leaflet() |>
   addTiles() |> 
   addControl(title, position = "topleft", className = "map-title") |> 
   setView(lng = 3, lat = 47, zoom = 4.8) |> 
-  addCircles(radius = proj_loin$nb_contrib, lng = proj_loin$longitude, lat = proj_loin$latitude, #color = proj_loin$col, 
-             weight = 1, opacity = proj_loin$nb_contrib, fillOpacity = .1, 
-             label = proj_loin$nom_commune,
-             popup = paste0(proj_loin$nom_commune, ", ", format(as.integer(proj_loin$nb_contrib, 0), nsmall = 1, big.mark = "."), 
-                            ifelse(proj_loin$nb_contrib <= 1, " contribution dont :\n", " contributions dont :\n"),
-                           "<br>• ", format(as.integer(proj_loin$questionnaires, 0), nsmall = 1, big.mark = "."), ifelse(proj_loin$questionnaires <= 1, " questionnaire", " questionnaires"),
-                           "<br>• ", format(as.integer(proj_loin$propositions, 0), nsmall = 1, big.mark = "."), ifelse(proj_loin$propositions <= 1, " proposition", " propositions"),
-                           "<br>• ", format(as.integer(proj_loin$commentaires, 0), nsmall = 1, big.mark = "."), ifelse(proj_loin$commentaires <= 1, " commentaire", " commentaires"),
-                           "<br>• ", format(as.integer(proj_loin$votes, 0), nsmall = 1, big.mark = "."), ifelse(proj_loin$votes <= 1, " vote", " votes"))) |> 
+  addCircles(radius = data_graph$Nb_users, lng = data_graph$Longitude, lat = data_graph$Latitude, #color = data_graph$col, 
+             weight = 1, opacity = data_graph$Nb_users, fillOpacity = .1, 
+             label = data_graph$Ville,
+             popup = paste(data_graph$Ville, ":", data_graph$Nb_users, "utilisateurs")) |> 
   addProviderTiles(provider = "Esri.WorldGrayCanvas")
 # all providers : http://leaflet-extras.github.io/leaflet-providers/preview/index.html
+```
 
-    # Carte avec les points qui se précisent au fur et à mesure du zoom
-test |> 
++ **Points qui se précisent avec le zoom**
+
+```{r eval=T}
+# Dataviz
+data_graph |> 
   leaflet() |>
   addTiles() |> 
   setView(lng = 3, lat = 47, zoom = 4.8) |> 
-  addMarkers(lng = test$long, lat = test$lat, 
-             label = test$Concessionnaires_Dénominationsociale,
+  addMarkers(lng = data_graph$Longitude, lat = data_graph$Latitude, 
+             label = data_graph$Ville,
              clusterOptions = markerClusterOptions()) |> #clusterOptions fait cet effet
   addProviderTiles(provider = "Esri.WorldGrayCanvas")
 saveWidget(m, file="m.html")
-    
 ```
 
 + **Cartography mapview (choropleth)**
 
-```{r}
-# Chargement des données
+```{r eval=T}
+# Data pour le graphique
 library(geojsonR)
 library(httr)
+library(sf)
+library(mapview)
+library(leafpop)
 temp_file <- tempfile(fileext = ".geojson")
+    #données ODS : https://public.opendatasoft.com/explore/dataset/georef-france-commune/table/?disjunctive.reg_name&disjunctive.dep_name&disjunctive.arrdep_name&disjunctive.ze2020_name&disjunctive.epci_name&disjunctive.ept_name&disjunctive.com_name&disjunctive.ze2010_name&disjunctive.com_is_mountain_area&disjunctive.bv2022_name&sort=year
 GET("https://public.opendatasoft.com/api/explore/v2.1/catalog/datasets/georef-france-commune/exports/geojson?lang=fr&refine=reg_name%3A%22Corse%22&facet=facet(name%3D%22reg_name%22%2C%20disjunctive%3Dtrue)&timezone=Europe%2FBerlin", write_disk(temp_file, overwrite = TRUE))
 communes_contours_geo <- st_read(temp_file, quiet = TRUE)
 
-# Carto
-library(mapview)
-library(leafpop)
-library(sf)
+# Dataviz
 communes_contours_geo |> 
     select(dep_name, geometry) |> 
     mutate(dep_name = as.character(dep_name)) |> # ÉTAPE IMPORTANTE SINON "ERROR NON-NUMERIC ARG"
@@ -1722,25 +1864,55 @@ communes_contours_geo |>
 + **Combinaison points and choropleth carto**
 
 ```{r}
-library(mapview)
-library(leafpop)
-library(leaflet)
-map <- mapview(data1$geometry, 
-        alpha.regions = .5, 
-        col.regions = "#CC0000", #fill color zones géo
-        lwd = 2, #épaisseur bordure zones géo
-        layer.name = "Territoires d'étude", #nom s'affichant en bas à droite
-        label = data1$com_name, 
-        popup = popupTable(data1, zcol = c("com_name")),
-        legend = TRUE) +
-mapview(st_as_sf(na.omit(data_geoloc2), coords = c("longitude", "latitude"), crs = 4326),
-        layer.name = "Commerces répondants",
-        col.regions = "#3182BD", 
-        alpha.regions = .5,
-        cex = "n", 
-        popup = data_geoloc2$nb_commerces, #texte quand on clique sur un point
-        label = data_geoloc2$nb_commerces, #texte au survol de la souris
-        legend = FALSE)
+# Data pour le graphique
+data_graph <- data.frame(
+  stringsAsFactors = FALSE,
+            Ville = c("Ajaccio","Bastia"),
+         Nb_users = c(100L,500L),
+        Longitude = c(8.736900, 9.450881),
+         Latitude = c(41.926701, 42.697285))
+
+# Data pour le graphique
+communes_contours_geo |> 
+    select(dep_name, geometry) |> 
+    mutate(dep_name = as.character(dep_name)) |> # ÉTAPE IMPORTANTE SINON "ERROR NON-NUMERIC ARG"
+    na.omit() |> 
+    st_as_sf() |> 
+    mapview(zcol = "dep_name",
+            layer.name = "Communes de Corse",
+            legend = TRUE, 
+            basemaps.color.shuffle = FALSE, map.types = "CartoDB.Positron",
+            col.regions = c("Corse-du-Sud" = "#b5dbfb", "Haute-Corse" = "#1d82df"),
+            popup = popupTable(communes_contours_geo, zcol = c("dep_name"))) +
+    mapview(st_as_sf(na.omit(data_graph), coords = c("Longitude", "Latitude")),
+          layer.name = "Commerces répondants",
+          col.regions = "red", 
+          alpha.regions = 1, map.types = "CartoDB.Positron",
+          cex = "n", 
+          popup = data_graph$Nb_users, #texte quand on clique sur un point
+          label = data_graph$Nb_users, #texte au survol de la souris
+          legend = FALSE)
+  
+
+
+
+
+# map <- mapview(data1$geometry, 
+#         alpha.regions = .5, 
+#         col.regions = "#CC0000", #fill color zones géo
+#         lwd = 2, #épaisseur bordure zones géo
+#         layer.name = "Territoires d'étude", #nom s'affichant en bas à droite
+#         label = data1$com_name, 
+#         popup = popupTable(data1, zcol = c("com_name")),
+#         legend = TRUE) +
+# mapview(st_as_sf(na.omit(data_geoloc2), coords = c("longitude", "latitude"), crs = 4326),
+#         layer.name = "Commerces répondants",
+#         col.regions = "#3182BD", 
+#         alpha.regions = .5,
+#         cex = "n", 
+#         popup = data_geoloc2$nb_commerces, #texte quand on clique sur un point
+#         label = data_geoloc2$nb_commerces, #texte au survol de la souris
+#         legend = FALSE)
 
 # Conversion en objet leaflet pour ajouter un titre
 leaflet_map <- map@map %>% 
@@ -1769,7 +1941,7 @@ ggplot(aes(x = Structure, y = Pourcentage, fill = Réponses,
   facet_wrap(~Edition) +
   coord_flip() +
   theme_classic() +
-  custom_theme() +
+  theme_custom() +
   guides(fill = guide_legend(ncol = 1, title = "", reverse = T)) +
   theme(legend.position = "top",
             panel.grid.major.x = ggplot2::element_line(color = "#cbcbcb"),
@@ -1794,15 +1966,16 @@ table |>
   scale_y_continuous(name = "Nombre total d'inscrits",
     sec.axis = sec_axis(~ . * 3.785737, name = "Nombre total de contributions")) +  #scale_x_date(date_labels = "%Y %b") +
   theme_classic() +
-  custom_theme() +
+  theme_custom() +
   theme(legend.position = "right",
         axis.title.y = element_text(color = "#3366CC"),
         axis.title.y.right = element_text(color = "#CC0000"))
 ```
 
 
-+ **Treemap**
+#### Treemap
 
++ **Simple, dégradé de verts**
 
 ```{r}
 library(treemap)
@@ -1816,12 +1989,121 @@ table |>
                         colour = "white", place = "centre", size = 15, grow = TRUE) +
       scale_fill_manual(values = c("#345E68", "#FEDEA0", "#B7C2A5", "#023743","#7A9BB1", "#B8AA75", "#7B8598", "#345B48", "#476F84", "#D0BA7C")) +
       labs(title = "Les 10 principales spécialités au BAC choisies par les étudiants d'Ile-de-France") +
-      custom_theme() +
+      theme_custom() +
       theme(legend.position = "none")
+
+# Un peu plus travaillé
+data |> 
+  mutate(Importance = factor(Importance, levels = c("Faible", "Moyenne", "Forte", "Indispensable"))) |> 
+  ggplot(aes(area = `COUNTA de Action`, fill = Importance, subgroup = `Aspect intéropérabilité`)) +
+      geom_treemap(col = "white", size = 4, alpha = .6) +
+      geom_treemap_text(aes(label = ifelse(`COUNTA de Action` == 1, 
+                                           paste0(`COUNTA de Action`, " action"),#\n(n° , ex_num_action, ")"
+                                           paste0(`COUNTA de Action`, " actions"))), #\n(n° , ex_num_action, ")"
+                        place = "centre", grow=F) +
+      #geom_treemap_subgroup_text(aes(label = `Aspect intéropérabilité`)) + 
+      geom_treemap_subgroup_text(place = "bottom", grow = TRUE,
+                             alpha = 0.25, colour = "black",
+                             fontface = "italic") +
+      geom_treemap_subgroup_border(colour = "white", size = 10) +
+      scale_fill_manual(values = c("Faible" = "#0f85a0", "Moyenne" = "#ffdb52", 
+                                   "Forte" = "#ed8b00", "Indispensable" = "#dd4124")) +
+      labs(title = "mon super titre") +
+      theme(legend.position = "top",
+            title = element_text(face = "bold", size = 18))
 ```
 
++ **Faceted treemap**
 
-+ **Customized lolipop chart**
+```{r eval=TRUE}
+library(treemapify)
+
+# Préparation des données
+data_graph <- data.frame(
+         stringsAsFactors = FALSE,
+  `Aspect intéropérabilité` = c("Sémantique",
+                              "Sémantique","Technique","Sémantique","Sémantique",
+                              "Sémantique","Sémantique","Levier humain",
+                              "Technique","Technique","Technique",
+                              "Levier humain","Levier humain","Levier humain","Sémantique",
+                              "Sémantique","Technique","Technique",
+                              "Sémantique","Sémantique"),
+               Importance = c("Forte","Forte",
+                              "Moyenne","Indispensable","Indispensable",
+                              "Moyenne","Moyenne","Moyenne","Faible","Moyenne",
+                              "Faible","Indispensable","Indispensable",
+                              "Forte","Forte","Moyenne","Indispensable","Forte",
+                              "Faible","Forte"),
+               Num_action = c(1,2,3,4,
+                              5,6,7,8,9,10,11,12,13,14,15,
+                              16,17,18,19,20)) |> 
+  rename(`Aspect intéropérabilité` = Aspect.intéropérabilité)
+
+# Graph
+data_graph |> 
+  mutate(nb_actions = n(),
+         action_agregee = ifelse(n() == 1, 
+                                 paste0("1 action\n(", Num_action, ")"), 
+                                 paste0(n(), " actions\n(", paste0(Num_action, collapse = ", "), ")")),
+         .by = c(`Aspect intéropérabilité`, Importance)) |> 
+  distinct(`Aspect intéropérabilité`, Importance, nb_actions, action_agregee) |> 
+  mutate(Importance = factor(Importance, levels = c("Faible", "Moyenne", "Forte", "Indispensable"))) |> 
+  ggplot(aes(area = nb_actions, fill = Importance, subgroup = `Aspect intéropérabilité`)) +
+      geom_treemap(col = "white", size = 4, alpha = .6) +
+      geom_treemap_text(aes(label = action_agregee), 
+                        place = "centre", grow=F) +
+      geom_treemap_subgroup_text(place = "bottom", grow = TRUE,
+                             alpha = 0.25, colour = "black",
+                             fontface = "italic") +
+      #geom_treemap_subgroup_border(colour = "white", size = 13) +
+      scale_fill_manual(values = c("Faible" = "#0f85a0", "Moyenne" = "#ffdb52", 
+                                   "Forte" = "#ed8b00", "Indispensable" = "#dd4124")) +
+      labs(title = "Actions à mener selon leur degré d'importance") +
+      facet_grid(~`Aspect intéropérabilité`) +
+      theme(legend.position = "top",
+            legend.title = ggplot2::element_text(size = 16, color = "#222222"), 
+            legend.text = ggplot2::element_text(size = 15,color = "#222222"), 
+            strip.text = element_blank(),
+            title = element_text(face = "bold", size = 18))
+```
+
+#### Lolipop chart
+
++ **Min and max values**
+
+```{r eval = T}
+comp_data <- data.frame("variable" = c("sepal_length", "sepal_width", "petal_length", "petal_width"),
+           "Minimum" = c(min(iris$sepal_length), min(iris$sepal_width), 
+                         min(iris$petal_length), min(iris$petal_width)),
+           "Maximum" = c(max(iris$sepal_length), max(iris$sepal_width), 
+                         max(iris$petal_length), max(iris$petal_width)),
+           "Moyenne" = c(mean(iris$sepal_length), mean(iris$sepal_width), 
+                         mean(iris$petal_length), mean(iris$petal_width)))
+comp_data |> 
+  arrange(variable) |> 
+  mutate(variable = factor(variable, levels = rev(unique(variable)))) |> 
+  ggplot() +
+  geom_segment(aes(x = Minimum, xend = Maximum, y = variable, yend = variable), col = "grey50") +
+  geom_segment(aes(x = Moyenne, xend = Moyenne+.02, y = variable, yend = variable), 
+               colour = "black", lwd = 3) +
+  geom_point( aes(x = Minimum, y = variable), color = "#2B73B4", size=3, alpha = .8) +
+  geom_point( aes(x = Maximum, y = variable), color = "#dd4124", size=3, alpha = .8) +
+  geom_text(aes(x = Moyenne+.2, y = variable, label = round(Moyenne, 1), 
+                hjust = "bottom", vjust = "bottom"), col = "#333333") +
+  labs(title = "Longeur minimales, maximales et moyennes des iris", x = "Longeur en cm", y = "") +
+  scale_y_discrete(labels = function(x) stringr::str_wrap(x, width = 50)) +
+  scale_color_manual(values = c("petal_length" = "#2B73B4", 
+                                "sepal_width" = "#fecf5d", 
+                                "sepal_length" = "#dd4124", 
+                                "petal_width" = "#ed8b00")) +
+  theme_custom() +
+  theme(legend.position = "none", 
+        plot.title = element_text(face = "bold"),
+        panel.grid.major.x = ggplot2::element_line(color = "#cbcbcb"),
+        panel.grid.major.y = ggplot2::element_blank())
+```
+
++ **Highlight value**
 
 ```{r}
 library(ggtext)
@@ -1839,7 +2121,7 @@ table |>
          subtitle = "Collaborations des commerçants avec des associations \nlocales",
          y = "Nombre de commerces") +
     scale_x_discrete(labels = function(x) stringr::str_wrap(x, width = 30)) +
-    custom_theme() +
+    theme_custom() +
     theme(legend.position = "none", 
           axis.title.y = element_blank(),
           panel.grid.major.x = ggplot2::element_line(color = "#cbcbcb"),
@@ -2088,6 +2370,7 @@ column_defs <- setNames(
 library(htmlwidgets)
 library(webshot2)
 saveWidget(widget = table_rea, file = "../mon_path/data.html", selfcontained = TRUE)
+saveWidget(widget = ma_carte@map, file = "../mon_path/carto.html", selfcontained = TRUE) #si carte mapview
 webshot2::webshot("../mon_path/data.html", "../mon_path/data.jpg", 
                   vwidth = 1200, vheight = 600)
 ```
