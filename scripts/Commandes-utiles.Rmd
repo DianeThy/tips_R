@@ -1541,6 +1541,8 @@ table_graph_global |>
 + **Grouped barplot**
 
 ```{r eval=T}
+library(ggtext)
+
 # Data pour le graphique
 data_graph <- data.frame(
   stringsAsFactors = FALSE,
@@ -1727,7 +1729,11 @@ ggplot(df, aes(x, y, height = h, width = w, label = info)) +
 ```{r eval=T}
 library(corrplot)
 
+# Data pour le graphique
+matrix <- cor(iris |> select(-species))
+
 # Dataviz
+col <- colorRampPalette(c("#BB4444", "#EE9988", "#FFFFFF", "#77AADD", "#4477AA"))
 corrplot(matrix, method="color", col=col(200),  
          type="upper", order="hclust", 
          addCoef.col = "black", # Ajout du coefficient de corrélation 
@@ -1741,9 +1747,6 @@ corrplot(matrix, method="color", col=col(200),
 ```{r eval=T}
 library(ggcorrplot)
 library(ggtext)
-
-# Data pour le graphique
-matrix <- cor(iris |> select(-species))
 
 # Dataviz
     # couleurs
@@ -1830,7 +1833,6 @@ data_graph |>
              label = data_graph$Ville,
              clusterOptions = markerClusterOptions()) |> #clusterOptions fait cet effet
   addProviderTiles(provider = "Esri.WorldGrayCanvas")
-saveWidget(m, file="m.html")
 ```
 
 + **Cartography mapview (choropleth)**
@@ -1863,7 +1865,7 @@ communes_contours_geo |>
 
 + **Combinaison points and choropleth carto**
 
-```{r}
+```{r eval=T}
 # Data pour le graphique
 data_graph <- data.frame(
   stringsAsFactors = FALSE,
@@ -1873,7 +1875,7 @@ data_graph <- data.frame(
          Latitude = c(41.926701, 42.697285))
 
 # Data pour le graphique
-communes_contours_geo |> 
+ma_carte <- communes_contours_geo |> 
     select(dep_name, geometry) |> 
     mutate(dep_name = as.character(dep_name)) |> # ÉTAPE IMPORTANTE SINON "ERROR NON-NUMERIC ARG"
     na.omit() |> 
@@ -1884,87 +1886,52 @@ communes_contours_geo |>
             basemaps.color.shuffle = FALSE, map.types = "CartoDB.Positron",
             col.regions = c("Corse-du-Sud" = "#b5dbfb", "Haute-Corse" = "#1d82df"),
             popup = popupTable(communes_contours_geo, zcol = c("dep_name"))) +
-    mapview(st_as_sf(na.omit(data_graph), coords = c("Longitude", "Latitude")),
-          layer.name = "Commerces répondants",
-          col.regions = "red", 
-          alpha.regions = 1, map.types = "CartoDB.Positron",
-          cex = "n", 
-          popup = data_graph$Nb_users, #texte quand on clique sur un point
-          label = data_graph$Nb_users, #texte au survol de la souris
+    mapview(
+          data_graph,
+          xcol = "Longitude", 
+          ycol = "Latitude",
+          crs = 4326,                 # coordonnées en WGS84
+          grid = FALSE,               # pas de grille
+          popup = "Nb_users",           # info affichée au clique
+          label = "Ville",            # info affichée au survol
+          cex = 4,                    # taille des points
+          col.regions = "red",        # couleur des points
+          alpha = 0.8,                # transparence
+          cluster = TRUE,             # équivalent de clusterOptions()
+          basemaps = "Esri.WorldGrayCanvas",
           legend = FALSE)
-  
-
-
-
-
-# map <- mapview(data1$geometry, 
-#         alpha.regions = .5, 
-#         col.regions = "#CC0000", #fill color zones géo
-#         lwd = 2, #épaisseur bordure zones géo
-#         layer.name = "Territoires d'étude", #nom s'affichant en bas à droite
-#         label = data1$com_name, 
-#         popup = popupTable(data1, zcol = c("com_name")),
-#         legend = TRUE) +
-# mapview(st_as_sf(na.omit(data_geoloc2), coords = c("longitude", "latitude"), crs = 4326),
-#         layer.name = "Commerces répondants",
-#         col.regions = "#3182BD", 
-#         alpha.regions = .5,
-#         cex = "n", 
-#         popup = data_geoloc2$nb_commerces, #texte quand on clique sur un point
-#         label = data_geoloc2$nb_commerces, #texte au survol de la souris
-#         legend = FALSE)
 
 # Conversion en objet leaflet pour ajouter un titre
-leaflet_map <- map@map %>% 
+leaflet_map <- ma_carte@map %>% 
   addControl(
-    html = "<h2 style='text-align:center; color: darkblue;'>Répartition géographique des commerces répondants</h2>",
+    html = "<h4 style='text-align:center; color: darkblue;'>Répartition géographique des répondants</h2>",
     position = "topright"
   )
 leaflet_map
 ```
 
 
-+ **Legend out of graph**
 
-```{r}
-# Légende
-graph_leg <- table_all |> 
-filter(Structure == "Une commune" | Structure == "Un EPCI" | Structure == "Un département" | 
-       Structure == "Une région" | Structure == "Autre") |> 
-mutate(Structure = factor(Structure, levels = c("Autre","Une région","Un département","Un EPCI","Une commune"))) |> 
-ggplot(aes(x = Structure, y = Pourcentage, fill = Réponses,
-           text = paste0(Pourcentage*100, "% de réponses '", Réponses, "'"))) + 
-  geom_bar(position = "fill", color = "white", stat="identity", alpha = .9) +
-  labs(x = "", y = "Pourcentage de réponses", title = "Par type de collectivité") +
-  scale_y_continuous(labels = scales::percent, limits = c(0,1)) +
-  scale_fill_manual(values = c("grey", "#bf0001", "#e1b44d", "#33bbc9", "#323465", "#616165", "#0a0a14")) +
-  facet_wrap(~Edition) +
-  coord_flip() +
-  theme_classic() +
-  theme_custom() +
-  guides(fill = guide_legend(ncol = 1, title = "", reverse = T)) +
-  theme(legend.position = "top",
-            panel.grid.major.x = ggplot2::element_line(color = "#cbcbcb"),
-            panel.grid.major.y = ggplot2::element_blank())
-legend <- get_legend(graph_leg + theme(legend.box.margin = margin(0, 0, 10, 12)))
-
-```
-
+#### Lineplot
 
 + **Dual axis on ggplot**
 
-```{r}
-table |> 
-    mutate(timestamp = as.Date(as.character(paste0(timestamp, "-01")))) |> 
-  ggplot(aes(x = timestamp
-             #text = paste(n_cumule, "inscrits en", format(timestamp, "%b %Y"))
-             )) +
-  geom_line( aes(y=n_cumule), size=1, alpha=0.9, color = "#3366CC") + 
-  geom_line( aes(y=n_cumule_contrib/3.785737), size=1, alpha=0.9, color = "#CC0000") +
-  labs(x = "Temps", y = "Nombre d'inscrits", 
-       title = stringr::str_wrap("Évolution du nombre d'inscrits et du nombre de contributions cumulés sur la plateforme depuis son lancement", width = 40)) +
-  scale_y_continuous(name = "Nombre total d'inscrits",
-    sec.axis = sec_axis(~ . * 3.785737, name = "Nombre total de contributions")) +  #scale_x_date(date_labels = "%Y %b") +
+```{r eval = T}
+# Data pour le graphique
+data_graph <- data.frame(temps = c(2015, 2016, 2017, 2018, 2019),
+                         n1 = c(123, 736, 927, 827, 329),
+                         n2 = c(1120, 2459, 3000, 4903, 6763))
+# Dataviz
+
+data_graph |> 
+  ggplot(aes(x = temps)) +
+  geom_line( aes(y=n1), size=1, alpha=0.9, color = "#3366CC") +
+  geom_line( aes(y=n2/(max(n2)/max(n1))), size=1, alpha=0.9, color = "#CC0000") +
+  labs(x = "Temps", 
+       title = stringr::str_wrap("Évolution de la population et du budget par habitant", width = 50)) +
+  scale_y_continuous(name = "Population",
+                     sec.axis = sec_axis(~ . * (max(data_graph$n2)/max(data_graph$n1)), 
+                                         name = "Budget par habitant")) +  #scale_x_date(date_labels = "%Y %b") +
   theme_classic() +
   theme_custom() +
   theme(legend.position = "right",
@@ -1975,50 +1942,39 @@ table |>
 
 #### Treemap
 
-+ **Simple, dégradé de verts**
++ **Simple, green color**
 
 ```{r}
 library(treemap)
 library(treemapify)
-table |> 
-  filter(row_number() <= 10) |> 
+
+# Data pour le graphique
+data_graph <- data.frame(
+         stringsAsFactors = FALSE,
+               Importance = c("Forte","Moyenne","Indispensable","Faible","Très forte", "Très faible", "Inexistant"),
+               Valeur = c(1,15,6,7,1,9,2))
+
+# Dataviz
+data_graph |> 
   ggplot() +
-      geom_treemap(aes(area = effectif_couple_spe, fill = couple_spe), col = "white", size = 4) +
-      geom_treemap_text(aes(area = effectif_couple_spe, fill = couple_spe, 
-                            label = paste0(couple_spe, "\n(", percent, "%)")),
+      geom_treemap(aes(area = Valeur, fill = Importance), col = "white", size = 4) +
+      geom_treemap_text(aes(area = Valeur, fill = Importance, 
+                            label = paste0(Importance, "\n(", Valeur, " actions)")),
                         colour = "white", place = "centre", size = 15, grow = TRUE) +
       scale_fill_manual(values = c("#345E68", "#FEDEA0", "#B7C2A5", "#023743","#7A9BB1", "#B8AA75", "#7B8598", "#345B48", "#476F84", "#D0BA7C")) +
-      labs(title = "Les 10 principales spécialités au BAC choisies par les étudiants d'Ile-de-France") +
+      labs(title = "Nombre d'actions selon leur importance") +
       theme_custom() +
       theme(legend.position = "none")
-
-# Un peu plus travaillé
-data |> 
-  mutate(Importance = factor(Importance, levels = c("Faible", "Moyenne", "Forte", "Indispensable"))) |> 
-  ggplot(aes(area = `COUNTA de Action`, fill = Importance, subgroup = `Aspect intéropérabilité`)) +
-      geom_treemap(col = "white", size = 4, alpha = .6) +
-      geom_treemap_text(aes(label = ifelse(`COUNTA de Action` == 1, 
-                                           paste0(`COUNTA de Action`, " action"),#\n(n° , ex_num_action, ")"
-                                           paste0(`COUNTA de Action`, " actions"))), #\n(n° , ex_num_action, ")"
-                        place = "centre", grow=F) +
-      #geom_treemap_subgroup_text(aes(label = `Aspect intéropérabilité`)) + 
-      geom_treemap_subgroup_text(place = "bottom", grow = TRUE,
-                             alpha = 0.25, colour = "black",
-                             fontface = "italic") +
-      geom_treemap_subgroup_border(colour = "white", size = 10) +
-      scale_fill_manual(values = c("Faible" = "#0f85a0", "Moyenne" = "#ffdb52", 
-                                   "Forte" = "#ed8b00", "Indispensable" = "#dd4124")) +
-      labs(title = "mon super titre") +
-      theme(legend.position = "top",
-            title = element_text(face = "bold", size = 18))
 ```
+
+
 
 + **Faceted treemap**
 
 ```{r eval=TRUE}
 library(treemapify)
 
-# Préparation des données
+# Data pour le graphique
 data_graph <- data.frame(
          stringsAsFactors = FALSE,
   `Aspect intéropérabilité` = c("Sémantique",
@@ -2072,14 +2028,17 @@ data_graph |>
 + **Min and max values**
 
 ```{r eval = T}
-comp_data <- data.frame("variable" = c("sepal_length", "sepal_width", "petal_length", "petal_width"),
+# Data pour le graphique
+data_graph <- data.frame("variable" = c("sepal_length", "sepal_width", "petal_length", "petal_width"),
            "Minimum" = c(min(iris$sepal_length), min(iris$sepal_width), 
                          min(iris$petal_length), min(iris$petal_width)),
            "Maximum" = c(max(iris$sepal_length), max(iris$sepal_width), 
                          max(iris$petal_length), max(iris$petal_width)),
            "Moyenne" = c(mean(iris$sepal_length), mean(iris$sepal_width), 
                          mean(iris$petal_length), mean(iris$petal_width)))
-comp_data |> 
+
+# Dataviz
+data_graph |> 
   arrange(variable) |> 
   mutate(variable = factor(variable, levels = rev(unique(variable)))) |> 
   ggplot() +
@@ -2105,33 +2064,62 @@ comp_data |>
 
 + **Highlight value**
 
-```{r}
+```{r eval=T}
 library(ggtext)
-table |> 
-    mutate(var = fct_reorder(var, n)) |> 
-    ggplot( aes(x=var, y=n)) +
-    geom_segment(aes(xend=var, yend=0), 
-                 color=ifelse(table_collab_treemap$var == "Associations de quartier", "#3182BD", "grey"), 
-                 size=ifelse(table_collab_treemap$var == "Associations de quartier", 1.3, 0.7)) +
-    geom_point(color=ifelse(table_collab_treemap$var == "Associations de quartier", "#3182BD", "grey"), 
-               size=ifelse(table_collab_treemap$var == "Associations de quartier", 5, 2)) +
-    theme_bw() +
-    coord_flip() +
-    labs(title = "Les <span style='color: #3182BD'>associations de quartier</span> sont les principales <br>associations avec lesquelles les commerçants <br>s'associent", #str_wrap() ne marche plus avec le element_markdown()
-         subtitle = "Collaborations des commerçants avec des associations \nlocales",
-         y = "Nombre de commerces") +
-    scale_x_discrete(labels = function(x) stringr::str_wrap(x, width = 30)) +
-    theme_custom() +
-    theme(legend.position = "none", 
-          axis.title.y = element_blank(),
-          panel.grid.major.x = ggplot2::element_line(color = "#cbcbcb"),
-          panel.grid.major.y = ggplot2::element_blank(),
-          plot.title = element_markdown()) +
-    ggplot2::annotate("text",
-             x = grep("Associations de quartier", table_collab_treemap$var),
-             y = table_collab_treemap$n[which(table_collab_treemap$var=="Associations de quartier")]*1.1,
-             label = paste0(round(percent_collab_quartier$percent, 0), "% des collaborations \nse font avec des \nassociations de quartier"),
-             color = "#3182BD", size=4 , angle=0, fontface="bold", hjust=0)
+
+# Dataviz
+data_graph |> 
+  ggplot() +
+  geom_segment(aes(x = 0, xend = Maximum, y = variable, yend = variable), 
+               color = ifelse(data_graph$variable == "sepal_length", "#dd4124", "#fecf5d"),
+               size = ifelse(data_graph$variable == "sepal_length", 2, 1)) +
+  geom_point(aes(x = Maximum, y = variable), 
+             color = ifelse(data_graph$variable == "sepal_length", "#dd4124", "#fecf5d"),
+             size = ifelse(data_graph$variable == "sepal_length", 3, 2)) +
+  labs(title = "Le maximum des <span style='color: #dd4124'>longeurs de sépales</span> est <br>plus élevé que les <span style='color: #fecf5d'>autres mesures</span>", #str_wrap() ne marche plus avec le element_markdown()
+         y = "", x = "Longeur en cm") +
+  theme_custom() +
+  theme(legend.position = "none", 
+        plot.title = element_markdown(),
+        panel.grid.major.x = ggplot2::element_line(color = "#cbcbcb"),
+        panel.grid.major.y = ggplot2::element_blank()) 
+  # ggplot2::annotate("text",
+  #            x = grep("Associations de quartier", data_graph$variable),
+  #            y = data_graph$Maximum[which(data_graph$variable == "sepal_length")]*1.1,
+  #            label = paste0(round(percent_collab_quartier$percent, 0), "% des collaborations \nse font avec des \nassociations de quartier"),
+  #            color = "#3182BD", size=4 , angle=0, fontface="bold", hjust=0)
+```
+
+
+```{r eval=FALSE, include=FALSE}
+#+ **Legend out of graph**
+library(cowplot) 
+
+# Data pour le graphique
+data_graph <- data.frame(Categorie = c("AA", "BB", "CC"),
+                         Valeur = c(40, 40, 20)) |> 
+    mutate(percent = round(Valeur / sum(Valeur) * 100, 0))
+
+# Dataviz
+graph_leg <- ggplot(data_graph, aes(x = 2, y = Valeur, fill = Categorie)) +
+  geom_col(col = "white", linewidth = 2) +
+  geom_text(aes(label = paste0(percent, "%"), color = Categorie),
+            position = position_stack(vjust = 0.5)) +
+  geom_text(aes(x = 0.2, y = 0, label = sum(Valeur)), col = "#333333", alpha = 0.8, size = 8, fontface = "bold") +
+  coord_polar(theta = "y") +
+  scale_fill_manual(values = c('#fecf5d', '#2B73B4','#82888d')) +
+  scale_color_manual(values = c("AA" = "black", "BB" = "white", "CC" = "white")) +
+  xlim(c(0.2, 2 + 0.5)) +
+  labs(title = "Répartition des catégories selon les espèces") +
+  guides(fill = guide_legend(title = "Catégories"),
+         col = "none") +
+  theme()
+legend <- get_legend(graph_leg + theme(legend.box.margin = margin(0, 0, 10, 12)))
+
+# Légende
+
+legend <- get_legend(graph_leg + theme(legend.box.margin = margin(0, 0, 10, 12)))
+legend
 ```
 
 
