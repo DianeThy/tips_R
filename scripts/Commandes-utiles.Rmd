@@ -1904,7 +1904,7 @@ ma_carte <- communes_contours_geo |>
 # Conversion en objet leaflet pour ajouter un titre
 leaflet_map <- ma_carte@map %>% 
   addControl(
-    html = "<h4 style='text-align:center; color: darkblue;'>Répartition géographique des répondants</h2>",
+    html = "<p style='text-align:center; color: darkblue;'>Répartition géographique des répondants</p>",
     position = "topright"
   )
 leaflet_map
@@ -1944,7 +1944,7 @@ data_graph |>
 
 + **Simple, green color**
 
-```{r}
+```{r eval=T}
 library(treemap)
 library(treemapify)
 
@@ -2049,7 +2049,7 @@ data_graph |>
   geom_point( aes(x = Maximum, y = variable), color = "#dd4124", size=3, alpha = .8) +
   geom_text(aes(x = Moyenne+.2, y = variable, label = round(Moyenne, 1), 
                 hjust = "bottom", vjust = "bottom"), col = "#333333") +
-  labs(title = "Longeur minimales, maximales et moyennes des iris", x = "Longeur en cm", y = "") +
+  labs(title = "Longeur minimales, maximales et moyennes des \niris", x = "Longeur en cm", y = "") +
   scale_y_discrete(labels = function(x) stringr::str_wrap(x, width = 50)) +
   scale_color_manual(values = c("petal_length" = "#2B73B4", 
                                 "sepal_width" = "#fecf5d", 
