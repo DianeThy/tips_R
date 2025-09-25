@@ -98,11 +98,21 @@ data <- read_sheet("lien/vers/le/google/sheets")
 ```{r}
 library(geojsonR)
 library(httr)
+library(sf)
 temp_file <- tempfile(fileext = ".geojson")
 GET("https://public.opendatasoft.com/api/explore/v2.1/catalog/datasets/georef-france-commune/exports/geojson?lang=fr&refine=reg_name%3A%22Corse%22&facet=facet(name%3D%22reg_name%22%2C%20disjunctive%3Dtrue)&timezone=Europe%2FBerlin", write_disk(temp_file, overwrite = TRUE))
 communes_contours_geo <- st_read(temp_file, quiet = TRUE)
 ```
 
++ **Excel with curl_download**
+
+```{r}
+library(readxl)
+library(curl)
+destfile <- "mon_df.xlsx"
+curl_download("https://github.com/open-energy-transition/MapYourGrid/raw/refs/heads/main/docs/data/GEM-Global-Integrated-Power-February-2025-update-II.xlsx", destfile)
+data <- read_excel(destfile, sheet = "Power facilities")
+```
 
 <br>
 
@@ -2129,39 +2139,82 @@ legend
 
 ### `gttable()`
 
-```{r}
++ **Picto per group**
+
+```{r eval = TRUE}
 library(gt)
 library(gtExtras)
-data |> 
+
+# Data pour le graphique
+data_table <- data.frame(
+    stringsAsFactors = FALSE,
+         check.names = FALSE,
+         Externalité = c("Lien social",
+                         "Lien social","Lien social","Lien social","Solidarités",
+                         "Solidarités","Solidarités","Solidarités","Vie de quartier",
+                         "Vie de quartier","Vie de quartier",
+                         "Vie de quartier","Santé et sécurité","Santé et sécurité",
+                         "Santé et sécurité","Santé et sécurité","Environnement",
+                         "Environnement","Environnement","Environnement",
+                         "Espace public","Espace public","Espace public",
+                         "Espace public"),
+          Indicateur = c("% de commerces collaborant avec des associations locales",
+                         "% de commerces donnant des explications approfondies sur les produits chaque semaine",
+                         "% de commerces ayant des discussions informelles avec leurs clients chaque semaine",
+                         "% de commerces combinant les 3 externalités",
+                         "% de commerces ayant déjà redirigé des clients vers des aides extérieures",
+                         "% de commerces sollicités par des personnes précaires proposant une aide",
+                         "% de commerces a qui se confient les clients sur des sujets privés chaque semaine",
+                         "% de commerces combinant les 3 externalités",
+                         "% de commerces participant à l'organisation d'évènements dynamisant la vie de quartier",
+                         "% de commerces rendant au moins deux types de service à leurs collègues commerçants",
+                         "% de commerces rendant des services aux habitants de leur immeuble",
+                         "% de commerces combinant les 3 externalités",
+                         "% de commerces intervenant lorsqu'ils sont témoins d'un malaise ou d'un accident",
+                         "% de commerces agissant immédiatement lorsqu'ils sont témoins d'une situation d'insécurité",
+                         "% de commerces ayant affaire à des citoyens en insécurité qui se réfugient dans leur commerce","% de commerces combinant les 3 externalités",
+                         "% de commerces ayant mis en place des actions pour réduire leurs déchêts",
+                         "% de commerces concernés ayant installé des équipements pour réduire leur consommation",
+                         "% de commerces discutant avec les clients de l'impact environnemental de leur consommation",
+                         "% de commerces combinant les 3 externalités",
+                         "% de commerces concernés impliqués dans des initiatives d'embellissement de la rue",
+                         "% de commerces nettoyant les abords de leur commerce au moins une fois par semaine",
+                         "% de commerces se situant dans un bâtiment classé patrimoine historique","% de commerces combinant les 3 externalités"),
+  `Nombre de réponses` = c(324L,320L,318L,324L,
+                         321L,198L,320L,324L,279L,313L,257L,324L,317L,323L,
+                         312L,324L,248L,234L,321L,324L,250L,319L,312L,
+                         324L),
+                 `%` = c(53L,95L,88L,47L,35L,
+                         78L,68L,14L,43L,85L,70L,19L,85L,45L,61L,31L,
+                         88L,71L,39L,16L,71L,70L,19L,8L)) |> 
     # Transformation de la colonne externalité pour mettre le picto
     mutate(` ` = case_match(Externalité,
-                                    "Lien social" ~ "images/lien_social.png",
-                                    "Solidarités" ~ "images/solidarites.png",
-                                    "Vie de quartier" ~ "images/vie_quartier.png",
-                                    "Santé et sécurité" ~ "images/sante_securite.png",
-                                    "Environnement" ~ "images/environnement.png",
-                                    "Espace public" ~ "images/espace_public.png")) |> 
+                                    "Lien social" ~ "../figures/lien_social.png",
+                                    "Solidarités" ~ "../figures/solidarites.png",
+                                    "Vie de quartier" ~ "../figures/vie_quartier.png",
+                                    "Santé et sécurité" ~ "../figures/sante_securite.png",
+                                    "Environnement" ~ "../figures/environnement.png",
+                                    "Espace public" ~ "../figures/espace_public.png")) |> 
     relocate(` `) |> 
     # Ordre des lignes et groupes
     mutate(Externalité = factor(Externalité, 
                                 levels = c("Lien social","Solidarités","Vie de quartier","Santé et sécurité","Environnement","Espace public"))) |> 
     mutate(ordre = ifelse(Indicateur == "% de commerces combinant les 3 externalités", 2, 1)) |> 
     arrange(Externalité, ordre) |>  # Tri par externalité, puis indicateur
-    select(-ordre) |> 
+    select(-ordre)
+
+# Table
+data_table |> 
     # GT TABLE
     gt(groupname_col = "Externalité") |> 
     # Titres
-    tab_header(title = md("**Comparaison territoriales des externalités positives du commerce**")) |>
+    tab_header(title = md("**Les externalités positives du commerce sur la ville**")) |>
     tab_source_note(source_note = md("*Données d'une enquête diffusée d'avril à novembre 2024 auprès de **324 commerces** de France entière.*")) |> 
-    # Rassemblement des chiffres par territoires
-    tab_spanner(label = md("**Paris**"), columns = c(`Nombre de réponses`, `%`)) |> 
-    tab_spanner(label = md("**St Ouen**"), columns = c(` Nombre de réponses`, ` %`)) |> 
-    tab_spanner(label = md("**Rouen**"), columns = c(`Nombre de réponses `, `% `)) |> 
-    # Stype de la table
+    # Style de la table
     tab_style(style = list(cell_text(weight = "lighter")), 
               locations = cells_body(columns = Indicateur)) |>  
     # Couleur des indicateurs récapitulatifs
-    tab_style(style = list(cell_fill(color = "lightgrey", alpha = 1)),
+    tab_style(style = list(cell_text(weight = "bold")),
               locations = cells_body(columns = everything(), 
                                      rows = Indicateur == "% de commerces combinant les 3 externalités")) |> 
     # Intégration des pictos externalités
@@ -2175,59 +2228,179 @@ data |>
     # % en barres
     gt_plt_bar_pct(`%`, scaled = TRUE, labels=TRUE, decimals = 0, 
                    font_size = "14px", fill = "#343333", height = 20) |> 
-    gt_plt_bar_pct(` %`, scaled = TRUE, labels=TRUE, decimals = 0, 
-                   font_size = "14px", fill = "#343333", height = 20) |> 
-    gt_plt_bar_pct(`% `, scaled = TRUE, labels=TRUE, decimals = 0, 
-                   font_size = "14px", fill = "#343333", height = 20) |> 
     # couleur des noms de groupes (familles d'externalités)
-    tab_style(style = list(cell_fill(color = "#B4B1B1", alpha = .4),
-                           cell_text(weight = "bold")),
+    tab_style(style = list(cell_fill(color = "#688E8E", alpha = .9),
+                           cell_text(weight = "bold", color = "white")),
               locations = cells_row_groups(groups = "Lien social")) |> 
-    tab_style(style = list(cell_fill(color = "#004654", alpha = .4),
-                           cell_text(weight = "bold")),
+    tab_style(style = list(cell_fill(color = "#EC6459", alpha = .9),
+                           cell_text(weight = "bold", color = "white")),
               locations = cells_row_groups(groups = "Solidarités")) |> 
-    tab_style(style = list(cell_fill(color = "#0097B2", alpha = .4),
+    tab_style(style = list(cell_fill(color = "#9AB0B0", alpha = .9),
                            cell_text(weight = "bold")),
               locations = cells_row_groups(groups = "Vie de quartier")) |> 
-    tab_style(style = list(cell_fill(color = "#00A589", alpha = .4),
+    tab_style(style = list(cell_fill(color = "#F2907F", alpha = .9),
                            cell_text(weight = "bold")),
               locations = cells_row_groups(groups = "Santé et sécurité")) |>
-    tab_style(style = list(cell_fill(color = "#E1B441", alpha = .4),
+    tab_style(style = list(cell_fill(color = "#CCD5D6", alpha = .9),
                            cell_text(weight = "bold")),
               locations = cells_row_groups(groups = "Environnement")) |>
-    tab_style(style = list(cell_fill(color = "#FF5757", alpha = .4),
+    tab_style(style = list(cell_fill(color = "#F7B8A9", alpha = .9),
                            cell_text(weight = "bold")),
               locations = cells_row_groups(groups = "Espace public")) |> 
     tab_style(style = list(cell_borders(sides = c("t", "b"), color = "white", weight = px(2))),
               locations = cells_row_groups()) |> 
-    # centrage des colonnes
-    cols_align(align = "center", columns = c(`Nombre de réponses`, `%`, ` Nombre de réponses`, ` %`, `Nombre de réponses `, `% `)) |> 
-    # retirer la ligne horizontale au-dessus du titre
-    tab_options(table.border.top.style = "none", 
-                table.border.top.width = px(0)) |>    
-    # table dans une boxe avec barre de défilement verticale
-    tab_options(table.width = "100%",         # Largeur de la table
-                container.overflow.x = "auto", # Scroll horizontal si nécessaire
-                container.overflow.y = "auto", # Scroll vertical si nécessaire
-                container.height = px(600)) |>     # Hauteur fixe avec défilement vertical
-    # fixe les noms de colonnes et titre 
-    opt_css(css = "
-      /* Fixer le titre */
-      .gt_title, .gt_subtitle {
-        position: sticky;
-        top: 0; 
-        background-color: #f9f9f9; /* Couleur de fond pour le titre */
-        z-index: 2;               /* Met le titre au-dessus */
-        padding: 5px;             /* Ajoute un peu de marge interne */
-      }
-      
-      /* Fixer les noms des colonnes */
-      thead th {
-        position: sticky;
-        top: 30px;                /* Ajuste en fonction de la hauteur du titre */
-        background-color: #ffffff; /* Couleur de fond pour l'en-tête */
-        z-index: 1;               /* Met les noms de colonnes devant les lignes */
-      }")
+     # centrage des colonnes
+    cols_align(align = "center", columns = c(`Nombre de réponses`, `%`))
+```
+
++ **Interactive list**
+
+```{r eval = TRUE}
+library(gt)
+library(dplyr)
+library(htmltools)  # pour html()
+
+# jeu de données simple
+df <- tibble::tibble(
+  Col1  = c("AA", "BB"),
+  Valeur = c(253, 43),
+  Detail = c("aaab, aabie, adeo", NA)
+)
+
+# préparer le HTML simple (on utilise le texte de Col1 comme summary)
+df <- df %>%
+  mutate(
+    Detail_html = ifelse(
+      is.na(Detail),
+      NA_character_,
+      paste0("<details><summary>", Col1, "</summary>", Detail, "</details>")
+    )
+  )
+
+# table gt : on remplace la colonne Detail par le HTML (html() empêche l'échappement)
+df %>%
+  gt() %>%
+  text_transform(
+    locations = cells_body(columns = vars(Detail)),
+    fn = function(x) {
+      # on renvoie la colonne Detail_html ligne par ligne, enveloppée par html()
+      lapply(seq_along(x), function(i) html(df$Detail_html[i]))
+    }
+  ) %>%
+  cols_label(Col1 = "Col1", Valeur = "Valeur", Detail = "Detail") |> 
+    cols_hide(Detail_html)
+```
+
++ **Density plot inside table**
+
+```{r eval = TRUE}
+# Data pour la table
+data_table <- iris |> 
+    summarise(min_sepal_length = min(sepal_length), 
+              max_sepal_length = max(sepal_length), 
+              mean_sepal_length = mean(sepal_length), 
+              .by = species)
+
+# Fonction pour la densité
+plot_density <- function(espece) {
+  iris |> 
+    filter(species == espece) |>
+    ggplot(aes(x = sepal_length, y = espece)) +
+    geom_violin(fill = '#036D7A') +
+    theme_void() +
+    labs(x = element_blank(), y = element_blank()) 
+}
+
+# Affichage de la table
+data_table |> 
+  mutate(Distribution = species) |> 
+  #table
+  gt() |> 
+  #violin plot de distribution
+  text_transform(
+    locations = cells_body(columns = 'Distribution'),
+    fn = function(column) {
+      map(column, plot_density) |>
+        ggplot_image(height = px(50), aspect_ratio = 1)
+    }
+  )  |> 
+  #coloration des moyennes
+  data_color(columns = mean_sepal_length,
+             colors = scales::col_numeric(palette = c("#b3d3d7", "#036d7a"), domain = NULL)) |> 
+  #groupe de statistiques
+  tab_spanner(label = 'Sepal lenght',
+              columns = c(mean_sepal_length, min_sepal_length, max_sepal_length, Distribution)) |> 
+  cols_label(min_sepal_length = "Min", max_sepal_length = "Max", mean_sepal_length = "Mean")
+```
+
++ **Custom table appearance**
+
+```{r}
+# Affichage de la table
+data_table |> 
+  gt() |> 
+  #drapeaux par pays
+  fmt_flag(columns = country_code_2) |> 
+  #format colonne en %
+  fmt_percent(columns = `Growth (%)`,
+            decimals = 1, drop_trailing_zeros = TRUE,
+            dec_mark = ",") |> 
+  #coloration des évolutions en %
+  data_color(columns = `Growth (%)`,
+             rows = `Growth (%)` != 0,
+             method = "bin",
+             apply_to = "text",
+             palette = c("#bf2f2f", "black", "#279f2b"),
+             bins = c(-1, 0, 1)) |> 
+  #coloration des évolutions en valeurs absolues
+  data_color(columns = `Growth (km)`,
+             rows = `Growth (km)` > 0,
+             method = "numeric",
+             palette = c("#FECF5D", "#279f2b"),
+             bins = c(-Inf, 0, Inf),
+             alpha = .8) |> #vers les verts quand valeur positive
+  data_color(columns = `Growth (km)`,
+             rows = `Growth (km)` < 0,
+             method = "numeric",
+             palette = c("#bf2f2f", "#ffa500"),
+             bins = c(-Inf, 0, Inf),
+             alpha = .8) |> #vers les rouges quand valeur négative
+  data_color(columns = `Growth (km)`,
+             rows = `Growth (km)` == 0,
+             method = "numeric",
+             palette = c("grey80"),
+             bins = c(-Inf, 0, Inf),
+             alpha = .8) |> #gris quand valeur = 0
+  #alternance gris / blanc par ligne
+  opt_row_striping() |> 
+  #centrer les nombres
+  tab_style(style = cell_text(align = "center"),
+            locations = cells_body(is.numeric)) |> 
+  #noms de pays en gras
+  tab_style(style = cell_text(weight = "bold"),
+            locations = cells_body(Country)) |> 
+  #mise en forme des noms de colonnes
+  tab_style(style = list(cell_text(align = "left")),
+            locations = cells_column_labels()) |> 
+  #bordures en blanc
+  tab_options(table_body.hlines.style = "solid",
+              table_body.hlines.width = 10, 
+              table_body.hlines.color = "white") |> 
+  #opt_table_lines("none") |> 
+  #taille colonnes
+  cols_width(` ` ~ px(30)) |> 
+  #intéractivité table
+  opt_interactive(use_search = TRUE,
+                  page_size_default = 25) |> 
+  #cacher colonne
+  cols_hide(country_code_3)
+```
+
++ **Export gt table**
+
+```{r}
+gtsave(ma_table, "figures/ma_table.png")
+gtsave(ma_table, "figures/ma_table.html") #quand opt_interactive() activé
 ```
 
 <br>
@@ -2386,6 +2559,7 @@ saving_plot <- function(graph, name, width, height) {
   ggsave(file = glue("~/Downloads/PNG/{name}.png"), plot = graph, width = width, height = height)
 }
 saving_plot(graph, "histogram", 9, 5)
+ggsave(file = "mon_graph.png", plot = graph, width = 8, height = 6)
 ```
 
 + **Export html objects (leaflet map, plotly)**
