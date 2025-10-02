@@ -371,7 +371,7 @@ plyr::round_any(x, 5)
 + **Shaping numeric variables**
 
 ```{r}
-# Nombres arrondis au million
+# Nombres arrondis au million - écriture scientifique
 format(round(100000000 / 1e6, 1), trim = TRUE)
 
 # Centaines et milliers séparés des virgules [comma]
@@ -1112,7 +1112,15 @@ grid::grid.draw(graph)
 ```{r}
 # Passer en plotly
 ggplotly(graph, tooltip = c("text")) |> 
-    layout(xaxis = list(autorange = TRUE), yaxis = list(autorange = TRUE)) #auto adjust scale when click on element
+    layout(yaxis = list(autorange = TRUE), #auto adjust scale when click on element
+           xaxis = list(rangeslider = list(visible = TRUE)), #slider sous l'axe x 
+           annotations = list(list(text = "Source : Données Essentielles de la Commande Publique - Arrêté du 22/12/2022 - Marchés", x = 0.5, y = -0.15, xref = "paper", yref = "paper", showarrow = FALSE, xanchor = "center", yanchor = "top", font = list(size = 12, color = "grey40", family = "Arial"))), #ajouter un caption (celui de ggplot ne s'affiche plus quand passé par plotly())
+           margin = list(b = 80), #aumgente la marge en-dessous (caption)
+           # Suite du code pour avoir légende + titre bien affichés (pas légende qui mord sur le titre)
+           margin = list(t = 140), #aumgente la marge au-dessus (title)
+           legend = list(orientation = "h", x = 0.5, y = 1.15, xanchor = "center", yanchor = "top"), #placer la légende
+           title = list(text = "<b>Répartition du montant total des marchés par année selon le code CPV</b>", x = 0.5, y = .98, xanchor = "top", yanchor = "top")) #placer le titre
+#Quand ça ne marche pas avec geom_line(), ajouter group = A dans aes() pour personnaliser le texte
 
 # Passer en giraph : mettre les geométries en interactif !! ex: geom_segment_interactive()
 graphc <- ggplot(data, aes(x = Réponses, y = Pourcentage, fill = Edition,
@@ -2132,6 +2140,106 @@ legend <- get_legend(graph_leg + theme(legend.box.margin = margin(0, 0, 10, 12))
 legend
 ```
 
+#### Jauge
+
+```{r eval = TRUE}
+library(ggforce)
+
+# Data pour le graphique
+percentage_done <- 0.58
+data_table <- tibble(
+  part = c("Complete", "Incomplete"),
+  percentage = c(percentage_done, 1 - percentage_done),
+  start = lag(percentage, default = 0) * pi,
+  end = start + percentage * pi
+)
+
+# Dataviz
+data_table |>
+  ggplot() +
+  geom_arc_bar(aes(x0 = 1, y0 = 1, fill = part, 
+                   start = start - pi / 2, end = end - pi / 2, 
+                   r0 = 0.75, r = 1),
+               color = "white") +
+  coord_fixed() +
+  annotate("text", x = 1, y = 1, 
+           label = glue::glue("{percentage_done * 100}%"), 
+           size = 16, fontface = "bold", 
+           color = "#454444", vjust = 0) +
+  annotate("text", x = 1.5, y = 1, 
+           label = "/ 100", 
+           size = 5, color = "#454444", vjust = 0) +
+  labs(title = str_wrap("Part de x parmi tous les répondants", width = 50)) +
+  theme_void() +
+  theme(legend.position = "none",
+        plot.title = element_text(size = 21, face = "bold", color = "#222222"), 
+        plot.title.position = "plot") +
+  scale_fill_manual(values = c("Incomplete" = "grey80",
+                               "Complete" = case_when(percentage_done <= 0.33 ~ "#D02727",
+                                                 percentage_done > 0.33 & percentage_done <= 0.66 ~ "#FFC508",
+                                                 percentage_done > 0.66 ~ "#3AAA58")))
+```
+
+
+#### Butterfly plot
+
+```{r eval = TRUE}
+library(plotly)
+
+# Data pour le graphique
+table1 <- data.frame(
+  stringsAsFactors = FALSE,
+   categorie = c("Alphabet", "bateau", "Chocolat", "dauphin"),
+                 n = c(54541L, 25258L, 24918L, 24917L),
+           percent = c(10.65, 4.93, 4.86, 4.86))
+table2 <- data.frame(
+  stringsAsFactors = FALSE,
+         categorie = c("Mot ZZZZ", "Mot YY", "Mot XX", "Mot WWWWW"),
+                 n = c(166210L, 166210L, 166210L, 67475L),
+           percent = c(8.21, 8.21, 8.21, 3.33))
+
+# Dataviz
+  # max
+max <- max(bind_rows(table1, table2)$n)
+  # vocabulaires contrôlés
+graph1 <- table1 |> 
+  mutate(categorie = gsub("^(\\w)(\\w+)", "\\U\\1\\L\\2", categorie, perl = TRUE),#première lettre en maj
+         categorie = fct_reorder(categorie, n)) |> 
+  ggplot(aes(x = categorie, 
+             y = n,
+             text = paste0(n, " fois utilisé, soit ", percent, "% des mots de famille 1"))) +
+  geom_bar(stat='identity', width = .7, fill = "#2B73B4", alpha=.9) +
+  ylim(0, max) +
+  scale_x_discrete(labels = function(x) stringr::str_wrap(x, width = 30)) +
+  coord_flip() +
+  labs(title = "Répartition des mots renseignés") +
+  theme_custom() +
+  theme(panel.grid.major.x = ggplot2::element_line(color = "#cbcbcb"),
+      panel.grid.major.y = ggplot2::element_blank())
+  # vocabulaires non contrôlés
+graph2 <- table2 |> 
+  mutate(categorie = gsub("^(\\w)(\\w+)", "\\U\\1\\L\\2", categorie, perl = TRUE),
+         categorie = fct_reorder(categorie, n)) |> 
+  ggplot(aes(x = categorie, 
+             y = n, 
+             text = paste0(n, " fois utilisé, soit ", percent, "% des mots de famille 2"))) +
+  geom_bar(stat='identity', width = .7, fill = "#dd4124", alpha=.9) +
+  ylim(0, max) +
+  scale_y_reverse() + 
+  scale_x_discrete(labels = function(x) stringr::str_wrap(x, width = 30)) +
+  coord_flip() +
+  theme_custom() +
+  theme(panel.grid.major.x = ggplot2::element_line(color = "#cbcbcb"),
+      panel.grid.major.y = ggplot2::element_blank())
+  # ensemble
+butterfly <- subplot(ggplotly(graph2, tooltip = c("text")), 
+                     ggplotly(graph1, tooltip = c("text")) |> 
+                       layout(yaxis = list(side = "right"))) |> #mot-clés contrôlés à droite et non à gauche des hbars
+      #nom des axes
+  layout(xaxis  = list(title = list(text = "<b>Famille 1</b>"), side = "left"), #en gras
+         xaxis2 = list(title = list(text = "<b>Famille 2</b>"), side = "right", anchor = "x2")) #en gras
+butterfly
+```
 
 <br>
 
